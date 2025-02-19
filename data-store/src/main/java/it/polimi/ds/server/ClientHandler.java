@@ -1,6 +1,6 @@
-package it.polimi.ds.server
+package it.polimi.ds.server;
 
-    import java.io.IOException;
+import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
@@ -34,7 +34,10 @@ public class ClientHandler implements Runnable {
     } catch (ClassNotFoundException e) {
       System.err.println("Invalid stream");
       System.exit(1);
-    }
+    } catch (IOException e) {
+          // TODO Handle client disconnection
+      
+        }
   }
 
   public void asnwerClient(ServerMessage msg) throws IOException {
