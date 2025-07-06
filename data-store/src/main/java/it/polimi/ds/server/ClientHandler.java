@@ -72,7 +72,7 @@ public class ClientHandler implements Runnable {
       }
 
     } catch (IOException e) {
-      System.err.println("Couldn't connect to client");
+      System.err.println("Client disconnected");
       disconnect();
     }
   }
