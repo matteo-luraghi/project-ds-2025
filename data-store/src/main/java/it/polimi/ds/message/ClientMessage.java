@@ -5,5 +5,5 @@ import java.io.Serializable;
 
 public abstract class ClientMessage implements Serializable {
 
-  public void process(ClientHandler clientHandler) {}
+  public void execute(ClientHandler clientHandler) {}
 }
