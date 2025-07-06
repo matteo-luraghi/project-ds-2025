@@ -28,7 +28,7 @@ public class Server {
   private int id;
   private ServerSocket serverSocket;
   private MulticastSocket multicastSocket;
-  private final int serverPort = 1234;
+  private final int serverPort;
   private final int multicastPort = 5000;
   private InetAddress multicastGroup;
   private final String multicastAddress = "230.0.0.1";
@@ -37,7 +37,8 @@ public class Server {
   private final Thread muticastReceiveThread;
   private final ExecutorService executor;
 
-  Server() throws IOException {
+  Server(int serverPort) throws IOException {
+    this.serverPort = serverPort;
     // threads setup
     this.executor = Executors.newCachedThreadPool();
     this.clientsThread = new Thread(this::acceptClients);
@@ -57,7 +58,7 @@ public class Server {
     String serverIP = InetAddress.getLocalHost().getHostAddress();
     this.serverSocket = new ServerSocket(this.serverPort);
     System.out.println("Server running at: " + serverIP);
-    System.out.println("Port for client connections: 1234");
+    System.out.println("Port for client connections: " + this.serverPort);
     System.out.println(
         "Multicast group info:\n   - Port: "
             + this.multicastPort
