@@ -3,6 +3,11 @@ package it.polimi.ds.client;
 import java.io.IOException;
 import java.util.Scanner;
 
+/**
+ * ClientMain
+ *
+ * <p>used to start a new client
+ */
 public class ClientMain {
 
   public static void main(String[] args) {
@@ -28,6 +33,8 @@ public class ClientMain {
 
           // parse user commands
           client.getUserCommands(scanner);
+          // user exited the application
+          System.exit(0);
 
         } while (!started);
 

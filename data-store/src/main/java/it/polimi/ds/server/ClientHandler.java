@@ -1,7 +1,6 @@
 package it.polimi.ds.server;
 
 import it.polimi.ds.message.ClientMessage;
-import it.polimi.ds.message.ServerToServerMessage;
 import it.polimi.ds.message.Ping;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -12,8 +11,9 @@ import java.net.SocketTimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Connectionhandler class used to handle the connection with the client from
- * the server
+ * Connectionhandler
+ *
+ * <p>used to handle the connection with the client from the server
  */
 public class ClientHandler implements Runnable {
   private final Socket socket;
@@ -29,24 +29,23 @@ public class ClientHandler implements Runnable {
    */
   ClientHandler(Socket socket) {
     this.socket = socket;
-    this.pingThread = new Thread(
-        () -> {
-          while (this.active.get()) {
-            try {
-              Thread.sleep(5000);
-              sendMessageClient(new Ping());
-            } catch (InterruptedException e) {
-              break;
-            }
-          }
-        });
+    this.pingThread =
+        new Thread(
+            () -> {
+              while (this.active.get()) {
+                try {
+                  Thread.sleep(5000);
+                  sendMessageClient(new Ping());
+                } catch (InterruptedException e) {
+                  break;
+                }
+              }
+            });
   }
 
   /**
-   * Start the connection handler by getting the input and output streams of the
-   * socket connection,
-   * starting the pingThread, sending the first message and start listening for
-   * new messages from
+   * Start the connection handler by getting the input and output streams of the socket connection,
+   * starting the pingThread, sending the first message and start listening for new messages from
    * the server
    */
   @Override
@@ -55,15 +54,16 @@ public class ClientHandler implements Runnable {
       this.outputStream = new ObjectOutputStream(socket.getOutputStream());
       this.inputStream = new ObjectInputStream(socket.getInputStream());
       this.active.set(true);
-      this.pingThread.start();
 
-      //sendMessageClient(new InitMessage());
+      // start the ping thread to keep the socket connection alive
+      this.pingThread.start();
 
       while (this.active.get()) {
         try {
           Object object = this.inputStream.readObject();
           if (!(object instanceof Ping)) {
             ClientMessage msg = (ClientMessage) object;
+            // execute the client request
             msg.execute(this);
           }
         } catch (ClassNotFoundException | SocketTimeoutException e) {

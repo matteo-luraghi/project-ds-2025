@@ -1,15 +1,19 @@
 package it.polimi.ds.message;
 
+import it.polimi.ds.server.ServerHandler;
 import java.io.Serializable;
 
-import it.polimi.ds.server.ServerHandler;
-
+/**
+ * ServerToServerMessage
+ *
+ * <p>used to communicate between servers
+ */
 public abstract class ServerToServerMessage implements Serializable {
 
   /**
-   * Executes the message
+   * Executes the message action on the receiving server
+   *
    * @param serverHandler
    */
   public abstract void execute(ServerHandler serverHandler);
-
 }

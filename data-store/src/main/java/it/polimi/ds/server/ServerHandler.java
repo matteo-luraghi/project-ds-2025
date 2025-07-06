@@ -9,6 +9,11 @@ import java.net.Socket;
 // FIX: probably need some sort of multicast, not sockets to communicate
 // bewtween different servers
 
+/**
+ * ServerHandler
+ *
+ * <p>used to manage server to server communication
+ */
 public class ServerHandler implements Runnable {
   private final Socket otherServer;
   private ObjectOutputStream output;

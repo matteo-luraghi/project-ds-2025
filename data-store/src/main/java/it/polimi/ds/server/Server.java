@@ -9,11 +9,15 @@ import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * Server
+ *
+ * <p>handles clients' requests and connects to other servers to keep state coherent
+ */
 public class Server {
   private int id;
   private ServerSocket serverSocket;
   private ServerSocket networkSocket;
-  private ArrayList<ClientHandler> clientHandlers = new ArrayList<>();
   private HashMap<Integer, ServerHandler> serverHandlers = new HashMap<>();
   private int serverPort = 1234;
   private int networkPort = 4321;
@@ -26,7 +30,6 @@ public class Server {
 
   /** Start the server by opening the sockets and accepting sockets connections */
   public void start() {
-
     try {
       String serverIP = InetAddress.getLocalHost().getHostAddress();
       this.serverSocket = new ServerSocket(this.serverPort);
@@ -43,9 +46,8 @@ public class Server {
         Socket clientSocket = this.serverSocket.accept();
         clientSocket.setSoTimeout(10000);
         ClientHandler clientHandler = new ClientHandler(clientSocket);
-        clientHandlers.add(clientHandler);
 
-        // start the connection handler thread
+        // start the client handler thread
         executor.submit(clientHandler);
       } catch (IOException e) {
         System.out.println("Error connecting to the client");

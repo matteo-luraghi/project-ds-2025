@@ -1,6 +1,10 @@
 package it.polimi.ds.server;
 
-
+/**
+ * ServerMain
+ *
+ * <p>used to create and run a new server
+ */
 public class ServerMain {
   public static void main(String[] args) {
     boolean started = false;

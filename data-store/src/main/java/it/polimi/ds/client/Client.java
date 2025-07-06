@@ -10,6 +10,12 @@ import java.net.Socket;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Client
+ *
+ * <p>
+ * used to connect to servers to perform read/write operations
+ */
 public class Client {
   private final Socket clientSocket;
   private final ObjectInputStream inputStream;
@@ -21,9 +27,8 @@ public class Client {
   /**
    * Constructor, builds the threads needed for messages
    *
-   * @param ip the server's ip address
+   * @param ip   the server's ip address
    * @param port the server's port of the connection
-   * @param view View interface
    * @throws IOException if the connection with the server fails
    */
   public Client(String ip, int port) throws IOException {
@@ -32,24 +37,24 @@ public class Client {
     this.clientSocket.connect(new InetSocketAddress(ip, port));
     this.outputStream = new ObjectOutputStream(this.clientSocket.getOutputStream());
     this.inputStream = new ObjectInputStream(this.clientSocket.getInputStream());
-    messageReceiver.start();
     this.connected.set(true);
 
-    // if the server is not online, disconnect the client
-    this.pingThread =
-        new Thread(
-            () -> {
-              while (this.connected.get()) {
-                try {
-                  Thread.sleep(5000);
-                  sendMessageServer(new Ping());
-                } catch (InterruptedException e) {
-                  // if the server is not online, disconnect the client
-                  System.err.println("Error connecting to the server");
-                  disconnect();
-                }
-              }
-            });
+    // start the message receiver thread
+    messageReceiver.start();
+
+    // sart the ping thread to keep the socket connection alive
+    this.pingThread = new Thread(
+        () -> {
+          while (this.connected.get()) {
+            try {
+              Thread.sleep(5000);
+              sendMessageServer(new Ping());
+            } catch (InterruptedException e) {
+              // if the server is not online, disconnect the client
+              disconnect();
+            }
+          }
+        });
     pingThread.start();
   }
 
@@ -70,7 +75,7 @@ public class Client {
     }
   }
 
-  /** Read the messages and add them in the queue */
+  /** Read messages from server and display them */
   public void readMessages() {
     try {
       while (this.connected.get()) {
@@ -88,6 +93,13 @@ public class Client {
     }
   }
 
+  /**
+   * Function that will execute when a client start, asks for commands until the
+   * user exits the
+   * application
+   *
+   * @param scanner
+   */
   public void getUserCommands(Scanner scanner) {
     String command = "";
     String key = "";
@@ -118,15 +130,18 @@ public class Client {
       } else {
         System.err.println("Insert a valid command!");
       }
-    } while (!command.equals("exit"));
+    } while (!command.equals("exit") && this.connected.get());
   }
 
   /** Disconnect the client */
   public void disconnect() {
+    System.out.println("Disconnecting...");
     if (this.connected.get()) {
       this.connected.set(false);
-      if (this.messageReceiver.isAlive()) this.messageReceiver.interrupt();
-      if (this.pingThread.isAlive()) this.pingThread.interrupt();
+      if (this.messageReceiver.isAlive())
+        this.messageReceiver.interrupt();
+      if (this.pingThread.isAlive())
+        this.pingThread.interrupt();
       try {
         this.inputStream.close();
         this.outputStream.close();
