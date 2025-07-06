@@ -5,5 +5,7 @@ import it.polimi.ds.server.ServerHandler;
 public class AppendLogMessage extends ServerToServerMessage {
 
   @Override
-  public void execute(ServerHandler serverHandler) {}
+  public void execute() {
+    System.out.println("Log needs to be appended");
+  }
 }

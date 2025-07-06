@@ -15,5 +15,5 @@ public abstract class ServerToServerMessage implements Serializable {
    *
    * @param serverHandler
    */
-  public abstract void execute(ServerHandler serverHandler);
+  public abstract void execute();
 }

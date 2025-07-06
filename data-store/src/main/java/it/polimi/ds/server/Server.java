@@ -17,6 +17,9 @@ import java.net.SocketAddress;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import it.polimi.ds.message.AppendLogMessage;
+import it.polimi.ds.message.ServerToServerMessage;
+
 /**
  * Server
  *
@@ -94,6 +97,10 @@ public class Server {
 
     // start receiving multicast messages
     this.muticastReceiveThread.start();
+    //TODO: remove this, only for checking multicast working
+    if (this.serverPort == 1234) {
+      sendMulticastMessage(new AppendLogMessage());
+    }
   }
 
   private void acceptClients() {
@@ -121,7 +128,11 @@ public class Server {
         ByteArrayInputStream bis = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
         ObjectInputStream ois = new ObjectInputStream(bis);
         Object msg = ois.readObject();
-        System.out.println("Received message: " + msg);
+
+        // execute server to server message
+        if (msg instanceof ServerToServerMessage) {
+          ((ServerToServerMessage) msg).execute();
+        }
 
       } catch (IOException | ClassNotFoundException e) {
         System.err.println(e.getMessage());
