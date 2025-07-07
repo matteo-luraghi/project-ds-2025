@@ -135,8 +135,8 @@ public class Client {
 
   /** Disconnect the client */
   public void disconnect() {
-    System.out.println("Disconnecting...");
     if (this.connected.get()) {
+      System.out.println("Disconnecting...");
       this.connected.set(false);
       if (this.messageReceiver.isAlive())
         this.messageReceiver.interrupt();
