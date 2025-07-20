@@ -1,5 +1,8 @@
 package it.polimi.ds.server;
 
+import it.polimi.ds.database.Database;
+import it.polimi.ds.message.AppendLogMessage;
+import it.polimi.ds.message.ServerToServerMessage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -14,23 +17,21 @@ import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.sql.SQLException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import it.polimi.ds.message.AppendLogMessage;
-import it.polimi.ds.message.ServerToServerMessage;
 
 /**
  * Server
  *
- * <p>
- * handles clients' requests and connects to other servers to keep state
- * coherent
+ * <p>handles clients' requests and connects to other servers to keep state coherent
  */
 public class Server {
   private int id;
+  private final Database db;
   private ServerSocket serverSocket;
   private MulticastSocket multicastSocket;
+  private final String serverIP;
   private final int serverPort;
   private final int multicastPort = 5000;
   private InetAddress multicastGroup;
@@ -42,6 +43,16 @@ public class Server {
 
   Server(int serverPort) throws IOException {
     this.serverPort = serverPort;
+    this.serverIP = InetAddress.getLocalHost().getHostAddress();
+
+    // db setup, the name of the db file is serverIP:serverPort.db
+    try {
+      this.db = new Database(this.serverIP + ":" + Integer.toString(this.serverPort));
+    } catch (SQLException e) {
+      System.err.println(e);
+      throw new IOException();
+    }
+
     // threads setup
     this.executor = Executors.newCachedThreadPool();
     this.clientsThread = new Thread(this::acceptClients);
@@ -58,9 +69,8 @@ public class Server {
    * @throws IOException
    */
   private void clientSocketSetup() throws IOException {
-    String serverIP = InetAddress.getLocalHost().getHostAddress();
     this.serverSocket = new ServerSocket(this.serverPort);
-    System.out.println("Server running at: " + serverIP);
+    System.out.println("Server running at: " + this.serverIP);
     System.out.println("Port for client connections: " + this.serverPort);
     System.out.println(
         "Multicast group info:\n   - Port: "
@@ -76,7 +86,8 @@ public class Server {
    */
   private void multicastSocketSetup() throws IOException {
     this.multicastGroup = InetAddress.getByName(multicastAddress);
-    NetworkInterface networkInterface = NetworkInterface.getByInetAddress(InetAddress.getLocalHost());
+    NetworkInterface networkInterface =
+        NetworkInterface.getByInetAddress(InetAddress.getLocalHost());
     SocketAddress groupAddress = new InetSocketAddress(multicastGroup, this.multicastPort);
 
     this.multicastSocket = new MulticastSocket(this.multicastPort);
@@ -87,8 +98,7 @@ public class Server {
   }
 
   /**
-   * Start the server by opening the socket, accepting sockets connections and
-   * joining the multicast
+   * Start the server by opening the socket, accepting sockets connections and joining the multicast
    * group
    */
   public void start() throws IOException {
@@ -97,7 +107,7 @@ public class Server {
 
     // start receiving multicast messages
     this.muticastReceiveThread.start();
-    //TODO: remove this, only for checking multicast working
+    // TODO: remove this, only for checking multicast working
     if (this.serverPort == 1234) {
       sendMulticastMessage(new AppendLogMessage());
     }
@@ -125,7 +135,8 @@ public class Server {
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         this.multicastSocket.receive(packet);
 
-        ByteArrayInputStream bis = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
+        ByteArrayInputStream bis =
+            new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
         ObjectInputStream ois = new ObjectInputStream(bis);
         Object msg = ois.readObject();
 
@@ -149,7 +160,8 @@ public class Server {
       oos.flush();
 
       byte[] data = bos.toByteArray();
-      DatagramPacket packet = new DatagramPacket(data, data.length, this.multicastGroup, this.multicastPort);
+      DatagramPacket packet =
+          new DatagramPacket(data, data.length, this.multicastGroup, this.multicastPort);
       this.multicastSocket.send(packet);
 
     } catch (IOException e) {

@@ -90,3 +90,6 @@ mvnw.cmd
 .mvn
 .settings
 .classpath
+
+# Don't save mock db from storage
+*.db

@@ -7,12 +7,12 @@ mvn compile
 
 Then you can run the server using the command:
 ```bash
-java -cp target/classes it.polimi.server.ServerMain
+mvn exec:java -Dexec.mainClass="it.polimi.ds.server.ServerMain"
 ```
 
 And the client using the command:
 ```bash
-java -cp target/classes it.polimi.client.ClientMain
+mvn exec:java -Dexec.mainClass="it.polimi.ds.client.ClientMain"
 ```
 
 ## Info

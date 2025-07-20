@@ -37,7 +37,7 @@ public class ServerHandler implements Runnable {
       while (true) {
         Object message = input.readObject();
         ServerToServerMessage msg = (ServerToServerMessage) message;
-        msg.execute(this);
+        msg.execute();
       }
     } catch (ClassNotFoundException e) {
       System.err.println("Invalid stream");
