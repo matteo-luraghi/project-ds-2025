@@ -22,7 +22,6 @@ mvn exec:java -Dexec.mainClass="it.polimi.ds.client.ClientMain"
 - remember to provide CAUSAL consistency (reads influence writes in the same process)
 
 ## TODO
-- implement the physical data store in persistent memory
 - implement a quorum algo for reading values (and update wrong nodes)
 - implement a quorum algo for writing values
 - implement the client commands
