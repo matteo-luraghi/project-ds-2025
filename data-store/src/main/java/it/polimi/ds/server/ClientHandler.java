@@ -29,7 +29,7 @@ public class ClientHandler implements Runnable {
    * @param server the handler's server
    * @param socket the socket
    */
-  ClientHandler(Server server, Socket socket) {
+  public ClientHandler(Server server, Socket socket) {
     this.server = server;
     this.socket = socket;
     this.pingThread =

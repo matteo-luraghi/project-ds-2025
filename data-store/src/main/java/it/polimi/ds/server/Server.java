@@ -1,8 +1,9 @@
 package it.polimi.ds.server;
 
 import it.polimi.ds.database.Database;
-import it.polimi.ds.message.AppendLogMessage;
 import it.polimi.ds.message.ServerToServerMessage;
+import it.polimi.ds.model.TimeVector;
+import it.polimi.ds.model.exception.InvalidDimensionException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -39,6 +40,7 @@ public class Server {
   private final Thread clientsThread;
   private final Thread muticastReceiveThread;
   private final ExecutorService executor;
+  private TimeVector timeVector = null;
 
   /**
    * Constructor, initializes the database connection, the client socket and the multicast socket
@@ -46,12 +48,20 @@ public class Server {
    *
    * @param id the server id
    * @param serverPort the port where the server is running
+   * @param serversNumber the number of the servers in the network
    * @throws IOException
+   * @throws InvalidDimensionException
    */
-  Server(int id, int serverPort) throws IOException {
+  Server(int id, int serverPort, int serversNumber) throws IOException, InvalidDimensionException {
     this.id = id;
     this.serverPort = serverPort;
     this.serverIP = InetAddress.getLocalHost().getHostAddress();
+
+    // TODO: could be useful to check db before initializing the timeVector to
+    // initialize it as the last log appended (for crash detection)
+
+    // initialize the server's time vector with all zeros
+    this.timeVector = new TimeVector(serversNumber);
 
     // db setup, the name of the db file is serverIP:serverPort.db
     try {
@@ -117,10 +127,6 @@ public class Server {
 
     // start receiving multicast messages
     this.muticastReceiveThread.start();
-    // TODO: remove this, only for checking multicast working
-    if (this.serverPort == 1234) {
-      sendMulticastMessage(new AppendLogMessage());
-    }
   }
 
   /** Thread that accepts connections from clients */
@@ -186,8 +192,18 @@ public class Server {
     }
   }
 
+  /** id getter */
+  public int getServerId() {
+    return this.id;
+  }
+
   /** db getter */
   public Database getDb() {
     return this.db;
+  }
+
+  /** timeVector getter */
+  public TimeVector getTimeVector() {
+    return this.timeVector;
   }
 }

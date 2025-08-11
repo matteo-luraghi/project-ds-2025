@@ -1,5 +1,8 @@
 package it.polimi.ds.message;
 
+import it.polimi.ds.model.Log;
+import it.polimi.ds.model.exception.InvalidDimensionException;
+import it.polimi.ds.model.exception.InvalidInitValuesException;
 import it.polimi.ds.server.ClientHandler;
 import java.sql.SQLException;
 
@@ -23,14 +26,37 @@ public class WriteRequest extends ClientMessage {
     this.value = value;
   }
 
-  // TODO: add multicast sending of the write
+  /**
+   * Increment the local time vector, save the log and the value in db, answer the client and
+   * multicast the log
+   *
+   * @param clientHandler the one that handles the connection with the client server-side
+   */
   public void execute(ClientHandler clientHandler) {
+    int serverId = clientHandler.getServer().getServerId();
+
+    // increment the time vector of the server processing the request
+    clientHandler.getServer().getTimeVector().increment(serverId);
+
+    // TODO: add a commit/rollback setup to commit only after both insertLog and
+    // insertValue worked
     try {
+      // build the log based on the server informations
+      Log log = new Log(clientHandler.getServer().getTimeVector(), serverId, this.key, this.value);
+      // add the log to the server's logs
+      clientHandler.getServer().getDb().insertLog(log);
+      // insert the value in the db
       clientHandler.getServer().getDb().insertValue(this.key, this.value);
+      // send the success response back to the client
       clientHandler.sendMessageClient(
           new ServerToClientResponseMessage(
               "\nSuccessfully inserted pair (" + this.key + ", " + this.value + ")\n"));
-    } catch (SQLException e) {
+      // send the AppendLogMessage in multicast to the other servers
+      clientHandler.getServer().sendMulticastMessage(new AppendLogMessage(log));
+
+    } catch (SQLException | InvalidDimensionException | InvalidInitValuesException e) {
+      System.out.println(e);
+      // send the error response back to the client
       clientHandler.sendMessageClient(
           new ServerToClientResponseMessage(
               "\nError inserting pair: (" + this.key + ", " + this.value + ")\n"));

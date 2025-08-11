@@ -3,12 +3,14 @@ package it.polimi.ds.model;
 import it.polimi.ds.model.exception.ImpossibleComparisonException;
 import it.polimi.ds.model.exception.InvalidDimensionException;
 import it.polimi.ds.model.exception.InvalidInitValuesException;
+import java.io.Serializable;
+
 /**
  * Implementation of a Vector Clock that represent the temporal advancement
  * of each server. DIMENSION represent the number of servers 
  * 
  */
-public class TimeVector {
+public class TimeVector implements Serializable {
     private final int dimension;
     private int[] vector;
 
@@ -16,14 +18,14 @@ public class TimeVector {
      * Dimension getter
      */
     public int getDimension(){
-        return dimension;
+        return this.dimension;
     }
 
     /**
      * Dector getter, makes a copy of the vector and returns it
      */
     public int[] getVector(){
-        int[] retVector= new int[dimension];
+        int[] retVector= new int[this.dimension];
         for (int i = 0; i < retVector.length; i++) {
             retVector[i]=this.vector[i];
         }
@@ -60,17 +62,18 @@ public class TimeVector {
             this.vector[i] = initValues[i];
         }
     }
+
     /**
      * add one time step to the serverID's timestamp
      * @throws ArrayIndexOutOfBoundsException
      */
-
     public void increment(int serverID) throws ArrayIndexOutOfBoundsException{
-        if(serverID>=this.dimension || serverID<0)
+        if(serverID >= this.dimension || serverID < 0)
             throw new ArrayIndexOutOfBoundsException();
-        
+
         this.vector[serverID]++;
     }
+
     /**
      * returns true iif THIS is smaller than or equal to OTHER in all timestamps, 
      * except for the timestamp of the senderID for which THIS can be bigger than OTHER 
