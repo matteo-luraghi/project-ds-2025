@@ -40,6 +40,14 @@ public class Server {
   private final Thread muticastReceiveThread;
   private final ExecutorService executor;
 
+  /**
+   * Constructor, initializes the database connection, the client socket and the multicast socket
+   * for the communication with the other servers
+   *
+   * @param id the server id
+   * @param serverPort the port where the server is running
+   * @throws IOException
+   */
   Server(int id, int serverPort) throws IOException {
     this.id = id;
     this.serverPort = serverPort;
@@ -100,6 +108,8 @@ public class Server {
   /**
    * Start the server by opening the socket, accepting sockets connections and joining the multicast
    * group
+   *
+   * @throws IOException
    */
   public void start() throws IOException {
     // start accepting clients connections
@@ -113,6 +123,7 @@ public class Server {
     }
   }
 
+  /** Thread that accepts connections from clients */
   private void acceptClients() {
     while (true) {
       try {
@@ -128,6 +139,7 @@ public class Server {
     }
   }
 
+  /** Thread that reads messages from the multicast socket */
   private void readMulticastMessages() {
     byte[] buffer = new byte[65535];
     while (true) {
@@ -151,6 +163,11 @@ public class Server {
     }
   }
 
+  /**
+   * Send a multicast message to all other servers
+   *
+   * @params msg the message to send
+   */
   public void sendMulticastMessage(Serializable msg) {
     try {
       ByteArrayOutputStream bos = new ByteArrayOutputStream();

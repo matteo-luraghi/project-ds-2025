@@ -22,7 +22,7 @@ public class ClientHandler implements Runnable {
   private final AtomicBoolean active = new AtomicBoolean(false);
   private ObjectOutputStream outputStream;
   private ObjectInputStream inputStream;
-  public final Database db;
+  private final Database db;
 
   /**
    * Constructor that initializes a ping thread
@@ -44,6 +44,11 @@ public class ClientHandler implements Runnable {
                 }
               }
             });
+  }
+
+  /** db getter */
+  public Database getDb() {
+    return this.db;
   }
 
   /**

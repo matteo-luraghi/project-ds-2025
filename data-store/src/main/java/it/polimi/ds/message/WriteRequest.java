@@ -23,9 +23,10 @@ public class WriteRequest extends ClientMessage {
     this.value = value;
   }
 
+  // TODO: add multicast sending of the write
   public void execute(ClientHandler clientHandler) {
     try {
-      clientHandler.db.insertValue(this.key, this.value);
+      clientHandler.getDb().insertValue(this.key, this.value);
       clientHandler.sendMessageClient(
           new ServerToClientResponseMessage(
               "\nSuccessfully inserted pair (" + this.key + ", " + this.value + ")\n"));

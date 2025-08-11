@@ -17,7 +17,7 @@ public class ServerToClientResponseMessage extends ServerToClientMessage {
     this.message = message;
   }
 
-  /** Show the  message to the client */
+  /** Show the message to the client */
   public void show() {
     System.out.println(this.message);
   }

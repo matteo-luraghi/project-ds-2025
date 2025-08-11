@@ -121,5 +121,15 @@ public class TimeVector {
         }
     }
 
+    /**
+    * Copy a time vector into a new time vector object
+    *
+    * @throws InvalidDimensionException
+    * @throws InvalidInitValuesException
+    */
+    public static TimeVector copyTimeVector(TimeVector vector) 
+      throws InvalidDimensionException, InvalidInitValuesException {
+      return new TimeVector(vector.getDimension(), vector.getVector());
+    }
 
 }

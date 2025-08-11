@@ -23,7 +23,7 @@ public class ReadRequest extends ClientMessage {
   /** Read the value associated with the key from the db and show it to the user */
   public void execute(ClientHandler clientHandler) {
     try {
-      String value = clientHandler.db.readValue(this.key);
+      String value = clientHandler.getDb().readValue(this.key);
       String message =
           (value != null)
               ? "\nKey: " + this.key + "\nValue: " + value + "\n"
@@ -31,7 +31,7 @@ public class ReadRequest extends ClientMessage {
       clientHandler.sendMessageClient(new ServerToClientResponseMessage(message));
     } catch (SQLException e) {
       clientHandler.sendMessageClient(
-          new ServerToClientResponseMessage("Error reading key: " + this.key));
+          new ServerToClientResponseMessage("\nError reading key: " + this.key + "\n"));
     }
   }
 }
