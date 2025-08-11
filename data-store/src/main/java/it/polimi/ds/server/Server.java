@@ -129,7 +129,7 @@ public class Server {
       try {
         Socket clientSocket = this.serverSocket.accept();
         clientSocket.setSoTimeout(10000);
-        ClientHandler clientHandler = new ClientHandler(clientSocket, this.db);
+        ClientHandler clientHandler = new ClientHandler(this, clientSocket);
 
         // start the client handler thread
         executor.submit(clientHandler);
@@ -184,5 +184,10 @@ public class Server {
     } catch (IOException e) {
       System.err.println("Error sending message: " + e);
     }
+  }
+
+  /** db getter */
+  public Database getDb() {
+    return this.db;
   }
 }

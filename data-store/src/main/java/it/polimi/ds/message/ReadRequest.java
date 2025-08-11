@@ -23,7 +23,7 @@ public class ReadRequest extends ClientMessage {
   /** Read the value associated with the key from the db and show it to the user */
   public void execute(ClientHandler clientHandler) {
     try {
-      String value = clientHandler.getDb().readValue(this.key);
+      String value = clientHandler.getServer().getDb().readValue(this.key);
       String message =
           (value != null)
               ? "\nKey: " + this.key + "\nValue: " + value + "\n"
