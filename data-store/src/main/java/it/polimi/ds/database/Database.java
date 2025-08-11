@@ -1,5 +1,9 @@
 package it.polimi.ds.database;
 
+import it.polimi.ds.model.Log;
+import it.polimi.ds.model.TimeVector;
+import it.polimi.ds.model.exception.InvalidDimensionException;
+import it.polimi.ds.model.exception.InvalidInitValuesException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -16,10 +20,11 @@ public class Database {
   private final Connection conn;
 
   /**
-   * Connects (or creates) to a sqlite database and creates the data_store table if not already
-   * present
+   * Connects (or creates) to a sqlite database and creates the data_store table and the log table
+   * if not already present
    *
    * @params serverId server identifier used to name the .db file
+   * @throws SQLException
    */
   public Database(String serverId) throws SQLException {
     String dbPath = "storage/" + serverId + ".db";
@@ -27,6 +32,10 @@ public class Database {
     Statement statement = conn.createStatement();
     statement.execute(
         "CREATE TABLE IF NOT EXISTS data_store (key TEXT " + "PRIMARY KEY, value TEXT)");
+    statement.execute(
+        "CREATE TABLE IF NOT EXISTS log (vector_clock TEXT, server_id INT, "
+            + "write_key TEXT, write_value TEXT,  "
+            + "PRIMARY KEY (vector_clock, server_id))");
   }
 
   /**
@@ -34,9 +43,12 @@ public class Database {
    *
    * @params key the key to
    * @params value the value to write
+   * @throws SQLException
    */
   public void insertValue(String key, String value) throws SQLException {
-    String query = "INSERT INTO data_store VALUES (?, ?)";
+    // REPLACE works as INSERT but if the key is already present overwrites the
+    // value
+    String query = "REPLACE INTO data_store VALUES (?, ?)";
     try (PreparedStatement pstatement = this.conn.prepareStatement(query)) {
       pstatement.setString(1, key);
       pstatement.setString(2, value);
@@ -48,6 +60,7 @@ public class Database {
    * Reads the value relative to a key from the db
    *
    * @params key the key to read
+   * @throws SQLException
    */
   public String readValue(String key) throws SQLException {
     String query = "SELECT value FROM data_store WHERE key = ?";
@@ -62,6 +75,39 @@ public class Database {
           return value;
         }
       }
+    }
+  }
+
+  /**
+   * Writes the log to the db
+   *
+   * @params log the log to write
+   * @throws SQLException
+   * @throws InvalidDimensionException
+   * @throws InvalidInitValuesException
+   */
+  public void insertLog(Log log)
+      throws SQLException, InvalidDimensionException, InvalidInitValuesException {
+    String query = "INSERT INTO log VALUES (?, ?, ?, ?)";
+
+    TimeVector vectorClock = log.getVectorClock();
+
+    // save the vector clock as a string where values are separated by ";"
+    String vectorClockString = "";
+    for (int i = 0; i < vectorClock.getDimension(); i++) {
+      if (i != vectorClock.getDimension() - 1) {
+        vectorClockString += vectorClock.getVector()[i] + ";";
+      } else {
+        vectorClockString += vectorClock.getVector()[i];
+      }
+    }
+
+    try (PreparedStatement pstatement = this.conn.prepareStatement(query)) {
+      pstatement.setString(1, vectorClockString);
+      pstatement.setString(2, Integer.toString(log.getServerId()));
+      pstatement.setString(3, log.getWriteKey());
+      pstatement.setString(4, log.getWriteValue());
+      pstatement.executeUpdate();
     }
   }
 }

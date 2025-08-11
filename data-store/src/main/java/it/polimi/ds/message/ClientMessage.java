@@ -13,7 +13,7 @@ public abstract class ClientMessage implements Serializable {
   /**
    * Execute the client request on the server
    *
-   * @param clientHandler
+   * @param clientHandler the one that handles the connection with the client server-side
    */
   public void execute(ClientHandler clientHandler) {}
 }

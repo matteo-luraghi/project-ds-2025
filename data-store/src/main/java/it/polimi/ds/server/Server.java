@@ -1,8 +1,9 @@
 package it.polimi.ds.server;
 
 import it.polimi.ds.database.Database;
-import it.polimi.ds.message.AppendLogMessage;
 import it.polimi.ds.message.ServerToServerMessage;
+import it.polimi.ds.model.TimeVector;
+import it.polimi.ds.model.exception.InvalidDimensionException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -36,14 +37,31 @@ public class Server {
   private final int multicastPort = 5000;
   private InetAddress multicastGroup;
   private final String multicastAddress = "230.0.0.1";
-  private ServerRole role;
   private final Thread clientsThread;
   private final Thread muticastReceiveThread;
   private final ExecutorService executor;
+  private TimeVector timeVector = null;
 
-  Server(int serverPort) throws IOException {
+  /**
+   * Constructor, initializes the database connection, the client socket and the multicast socket
+   * for the communication with the other servers
+   *
+   * @param id the server id
+   * @param serverPort the port where the server is running
+   * @param serversNumber the number of the servers in the network
+   * @throws IOException
+   * @throws InvalidDimensionException
+   */
+  Server(int id, int serverPort, int serversNumber) throws IOException, InvalidDimensionException {
+    this.id = id;
     this.serverPort = serverPort;
     this.serverIP = InetAddress.getLocalHost().getHostAddress();
+
+    // TODO: could be useful to check db before initializing the timeVector to
+    // initialize it as the last log appended (for crash detection)
+
+    // initialize the server's time vector with all zeros
+    this.timeVector = new TimeVector(serversNumber);
 
     // db setup, the name of the db file is serverIP:serverPort.db
     try {
@@ -100,6 +118,8 @@ public class Server {
   /**
    * Start the server by opening the socket, accepting sockets connections and joining the multicast
    * group
+   *
+   * @throws IOException
    */
   public void start() throws IOException {
     // start accepting clients connections
@@ -107,18 +127,15 @@ public class Server {
 
     // start receiving multicast messages
     this.muticastReceiveThread.start();
-    // TODO: remove this, only for checking multicast working
-    if (this.serverPort == 1234) {
-      sendMulticastMessage(new AppendLogMessage());
-    }
   }
 
+  /** Thread that accepts connections from clients */
   private void acceptClients() {
     while (true) {
       try {
         Socket clientSocket = this.serverSocket.accept();
         clientSocket.setSoTimeout(10000);
-        ClientHandler clientHandler = new ClientHandler(clientSocket);
+        ClientHandler clientHandler = new ClientHandler(this, clientSocket);
 
         // start the client handler thread
         executor.submit(clientHandler);
@@ -128,6 +145,7 @@ public class Server {
     }
   }
 
+  /** Thread that reads messages from the multicast socket */
   private void readMulticastMessages() {
     byte[] buffer = new byte[65535];
     while (true) {
@@ -151,6 +169,11 @@ public class Server {
     }
   }
 
+  /**
+   * Send a multicast message to all other servers
+   *
+   * @params msg the message to send
+   */
   public void sendMulticastMessage(Serializable msg) {
     try {
       ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -167,5 +190,20 @@ public class Server {
     } catch (IOException e) {
       System.err.println("Error sending message: " + e);
     }
+  }
+
+  /** id getter */
+  public int getServerId() {
+    return this.id;
+  }
+
+  /** db getter */
+  public Database getDb() {
+    return this.db;
+  }
+
+  /** timeVector getter */
+  public TimeVector getTimeVector() {
+    return this.timeVector;
   }
 }

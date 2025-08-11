@@ -1,6 +1,7 @@
 package it.polimi.ds.message;
 
 import it.polimi.ds.server.ClientHandler;
+import java.sql.SQLException;
 
 /**
  * ReadRequest
@@ -19,8 +20,18 @@ public class ReadRequest extends ClientMessage {
     this.key = key;
   }
 
+  /** Read the value associated with the key from the db and show it to the user */
   public void execute(ClientHandler clientHandler) {
-    System.out.println("User asked to read: " + key);
-    System.out.println("");
+    try {
+      String value = clientHandler.getServer().getDb().readValue(this.key);
+      String message =
+          (value != null)
+              ? "\nKey: " + this.key + "\nValue: " + value + "\n"
+              : "\nNo value for key: " + this.key + "\n";
+      clientHandler.sendMessageClient(new ServerToClientResponseMessage(message));
+    } catch (SQLException e) {
+      clientHandler.sendMessageClient(
+          new ServerToClientResponseMessage("\nError reading key: " + this.key + "\n"));
+    }
   }
 }

@@ -13,8 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Client
  *
- * <p>
- * used to connect to servers to perform read/write operations
+ * <p>used to connect to servers to perform read/write operations
  */
 public class Client {
   private final Socket clientSocket;
@@ -27,7 +26,7 @@ public class Client {
   /**
    * Constructor, builds the threads needed for messages
    *
-   * @param ip   the server's ip address
+   * @param ip the server's ip address
    * @param port the server's port of the connection
    * @throws IOException if the connection with the server fails
    */
@@ -43,18 +42,19 @@ public class Client {
     messageReceiver.start();
 
     // sart the ping thread to keep the socket connection alive
-    this.pingThread = new Thread(
-        () -> {
-          while (this.connected.get()) {
-            try {
-              Thread.sleep(5000);
-              sendMessageServer(new Ping());
-            } catch (InterruptedException e) {
-              // if the server is not online, disconnect the client
-              disconnect();
-            }
-          }
-        });
+    this.pingThread =
+        new Thread(
+            () -> {
+              while (this.connected.get()) {
+                try {
+                  Thread.sleep(5000);
+                  sendMessageServer(new Ping());
+                } catch (InterruptedException e) {
+                  // if the server is not online, disconnect the client
+                  disconnect();
+                }
+              }
+            });
     pingThread.start();
   }
 
@@ -94,8 +94,7 @@ public class Client {
   }
 
   /**
-   * Function that will execute when a client start, asks for commands until the
-   * user exits the
+   * Function that will execute when a client start, asks for commands until the user exits the
    * application
    *
    * @param scanner
@@ -121,7 +120,7 @@ public class Client {
       } else if (command.equalsIgnoreCase("write")) {
         System.out.println("Insert the key you want to write to:");
         key = scanner.nextLine();
-        System.out.println("Inser the value you want to write:");
+        System.out.println("Insert the value you want to write:");
         value = scanner.nextLine();
         // send the request to write the value to the server
         sendMessageServer(new WriteRequest(key, value));
@@ -138,10 +137,8 @@ public class Client {
     if (this.connected.get()) {
       System.out.println("Disconnecting...");
       this.connected.set(false);
-      if (this.messageReceiver.isAlive())
-        this.messageReceiver.interrupt();
-      if (this.pingThread.isAlive())
-        this.pingThread.interrupt();
+      if (this.messageReceiver.isAlive()) this.messageReceiver.interrupt();
+      if (this.pingThread.isAlive()) this.pingThread.interrupt();
       try {
         this.inputStream.close();
         this.outputStream.close();

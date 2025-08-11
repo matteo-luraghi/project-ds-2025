@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * <p>used to handle the connection with the client from the server
  */
 public class ClientHandler implements Runnable {
+  private final Server server;
   private final Socket socket;
   private final Thread pingThread;
   private final AtomicBoolean active = new AtomicBoolean(false);
@@ -25,9 +26,11 @@ public class ClientHandler implements Runnable {
   /**
    * Constructor that initializes a ping thread
    *
+   * @param server the handler's server
    * @param socket the socket
    */
-  ClientHandler(Socket socket) {
+  public ClientHandler(Server server, Socket socket) {
+    this.server = server;
     this.socket = socket;
     this.pingThread =
         new Thread(
@@ -109,5 +112,10 @@ public class ClientHandler implements Runnable {
       } catch (IOException ignored) {
       }
     }
+  }
+
+  /** server getter */
+  public Server getServer() {
+    return this.server;
   }
 }
