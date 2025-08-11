@@ -36,12 +36,12 @@ public class Server {
   private final int multicastPort = 5000;
   private InetAddress multicastGroup;
   private final String multicastAddress = "230.0.0.1";
-  private ServerRole role;
   private final Thread clientsThread;
   private final Thread muticastReceiveThread;
   private final ExecutorService executor;
 
-  Server(int serverPort) throws IOException {
+  Server(int id, int serverPort) throws IOException {
+    this.id = id;
     this.serverPort = serverPort;
     this.serverIP = InetAddress.getLocalHost().getHostAddress();
 
@@ -118,7 +118,7 @@ public class Server {
       try {
         Socket clientSocket = this.serverSocket.accept();
         clientSocket.setSoTimeout(10000);
-        ClientHandler clientHandler = new ClientHandler(clientSocket);
+        ClientHandler clientHandler = new ClientHandler(clientSocket, this.db);
 
         // start the client handler thread
         executor.submit(clientHandler);

@@ -1,5 +1,6 @@
 package it.polimi.ds.server;
 
+import it.polimi.ds.database.Database;
 import it.polimi.ds.message.ClientMessage;
 import it.polimi.ds.message.Ping;
 import java.io.IOException;
@@ -21,13 +22,15 @@ public class ClientHandler implements Runnable {
   private final AtomicBoolean active = new AtomicBoolean(false);
   private ObjectOutputStream outputStream;
   private ObjectInputStream inputStream;
+  public final Database db;
 
   /**
    * Constructor that initializes a ping thread
    *
    * @param socket the socket
    */
-  ClientHandler(Socket socket) {
+  ClientHandler(Socket socket, Database db) {
+    this.db = db;
     this.socket = socket;
     this.pingThread =
         new Thread(

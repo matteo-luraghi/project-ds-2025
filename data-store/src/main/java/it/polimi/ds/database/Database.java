@@ -36,7 +36,9 @@ public class Database {
    * @params value the value to write
    */
   public void insertValue(String key, String value) throws SQLException {
-    String query = "INSERT INTO data_store VALUES (?, ?)";
+    // REPLACE works as INSERT but if the key is already present overwrites the value
+    String query =
+        "REPLACE INTO data_store VALUES (?, ?)";
     try (PreparedStatement pstatement = this.conn.prepareStatement(query)) {
       pstatement.setString(1, key);
       pstatement.setString(2, value);

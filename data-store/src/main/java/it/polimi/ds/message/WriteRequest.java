@@ -1,6 +1,7 @@
 package it.polimi.ds.message;
 
 import it.polimi.ds.server.ClientHandler;
+import java.sql.SQLException;
 
 /**
  * WriteRequest
@@ -23,7 +24,15 @@ public class WriteRequest extends ClientMessage {
   }
 
   public void execute(ClientHandler clientHandler) {
-    System.out.println("User asked to write value:" + value + ", with key: " + key);
-    System.out.println("");
+    try {
+      clientHandler.db.insertValue(this.key, this.value);
+      clientHandler.sendMessageClient(
+          new ServerToClientResponseMessage(
+              "\nSuccessfully inserted pair (" + this.key + ", " + this.value + ")\n"));
+    } catch (SQLException e) {
+      clientHandler.sendMessageClient(
+          new ServerToClientResponseMessage(
+              "\nError inserting pair: (" + this.key + ", " + this.value + ")\n"));
+    }
   }
 }

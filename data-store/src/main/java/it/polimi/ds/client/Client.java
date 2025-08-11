@@ -121,7 +121,7 @@ public class Client {
       } else if (command.equalsIgnoreCase("write")) {
         System.out.println("Insert the key you want to write to:");
         key = scanner.nextLine();
-        System.out.println("Inser the value you want to write:");
+        System.out.println("Insert the value you want to write:");
         value = scanner.nextLine();
         // send the request to write the value to the server
         sendMessageServer(new WriteRequest(key, value));
