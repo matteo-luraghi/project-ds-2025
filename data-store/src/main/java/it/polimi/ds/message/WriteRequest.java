@@ -35,11 +35,14 @@ public class WriteRequest extends ClientMessage {
   public void execute(ClientHandler clientHandler) {
     int serverId = clientHandler.getServer().getServerId();
     TimeVector vectorClock = clientHandler.getServer().getTimeVector();
-    Log log = new Log(clientHandler.getServer().getTimeVector(), serverId, this.key, this.value);
+    Log log = null;
 
     synchronized (vectorClock) {
       // increment the time vector of the server processing the request
       vectorClock.increment(serverId);
+
+      // initialize the log after the clock increment
+      log = new Log(clientHandler.getServer().getTimeVector(), serverId, this.key, this.value);
 
       // build the log based on the server informations
       try {
