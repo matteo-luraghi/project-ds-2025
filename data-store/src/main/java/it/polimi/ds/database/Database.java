@@ -115,8 +115,7 @@ public class Database {
           NumberFormatException,
           InvalidDimensionException,
           InvalidInitValuesException {
-    // FIX: fix the query to get the last log inserted
-    String query = "SELECT * FROM log LIMIT 1";
+    String query = "SELECT * FROM log ORDER BY rowid DESC LIMIT 1";
     Statement statement = conn.createStatement();
     try (ResultSet res = statement.executeQuery(query)) {
       if (!res.isBeforeFirst()) return null;

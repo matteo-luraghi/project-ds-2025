@@ -66,7 +66,7 @@ public class Server {
 
     // db setup, the name of the db file is serverIP:serverPort.db
     try {
-      this.db = new Database(this.serverIP + ":" + Integer.toString(this.serverPort));
+      this.db = new Database(this.serverIP + "_" + Integer.toString(this.serverPort));
     } catch (SQLException e) {
       System.err.println(e);
       throw new IOException();
