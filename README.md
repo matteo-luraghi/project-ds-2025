@@ -16,7 +16,6 @@ mvn exec:java -Dexec.mainClass="it.polimi.ds.client.ClientMain"
 ```
 
 ## TODO
-- manage multicasted writes on replicas: append to log and then perform write (from ordered buffer)
 - ask past updates if see that a replica is not up to date
 - manage network partitions
 - implement a failure recovery system to copy the updated data store when a node comes back up after a crash
