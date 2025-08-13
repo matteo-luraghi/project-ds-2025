@@ -36,6 +36,12 @@ public class AppendLogMessage extends ServerToServerMessage {
    */
   @Override
   public void execute(Server server) {
+
+    // message that come back to the sending server are ignored
+    if (this.log.getServerId() == server.getServerId()) {
+      return;
+    }
+
     // log in local db and execute the write query
     try {
       TimeVector msgVC = log.getVectorClock();

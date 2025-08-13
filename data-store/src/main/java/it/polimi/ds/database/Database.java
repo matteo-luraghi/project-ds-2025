@@ -119,12 +119,9 @@ public class Database {
     this.conn.setAutoCommit(false);
     try {
       this.insertLog(log);
-      System.out.println("inserted log");
       this.insertValue(log.getWriteKey(), log.getWriteValue());
-      System.out.println("inserted value");
       this.conn.commit();
     } catch (SQLException e) {
-      System.out.println(e);
       this.conn.rollback();
       this.conn.setAutoCommit(true);
       throw e;
