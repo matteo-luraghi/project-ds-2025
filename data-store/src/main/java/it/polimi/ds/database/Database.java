@@ -110,6 +110,27 @@ public class Database {
     }
   }
 
+  public Log getLastLog()
+      throws SQLException,
+          NumberFormatException,
+          InvalidDimensionException,
+          InvalidInitValuesException {
+    // FIX: fix the query to get the last log inserted
+    String query = "SELECT * FROM log LIMIT 1";
+    Statement statement = conn.createStatement();
+    try (ResultSet res = statement.executeQuery(query)) {
+      if (!res.isBeforeFirst()) return null;
+      else {
+        res.next();
+        TimeVector vectorClock = this.parseTimeVector(res.getString("vector_clock"));
+        int serverId = Integer.parseInt(res.getString("server_id"));
+        String writeKey = res.getString("write_key");
+        String writeValue = res.getString("write_value");
+        return new Log(vectorClock, serverId, writeKey, writeValue);
+      }
+    }
+  }
+
   /**
    * Writes the log and the (key, value) pair in a single transaction, rollbacks if either one fails
    *
@@ -127,5 +148,16 @@ public class Database {
       throw e;
     }
     this.conn.setAutoCommit(true);
+  }
+
+  private TimeVector parseTimeVector(String timeVectorStr)
+      throws NumberFormatException, InvalidDimensionException, InvalidInitValuesException {
+    String[] vectorArrayStr = timeVectorStr.split(";");
+    int dimension = vectorArrayStr.length;
+    int[] vectorArray = new int[dimension];
+    for (int i = 0; i < dimension; i++) {
+      vectorArray[i] = Integer.parseInt(vectorArrayStr[i]);
+    }
+    return new TimeVector(dimension, vectorArray);
   }
 }

@@ -6,6 +6,7 @@ import it.polimi.ds.model.Log;
 import it.polimi.ds.model.TimeVector;
 import it.polimi.ds.model.exception.ImpossibleComparisonException;
 import it.polimi.ds.model.exception.InvalidDimensionException;
+import it.polimi.ds.model.exception.InvalidInitValuesException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -63,18 +64,31 @@ public class Server {
     this.serverPort = serverPort;
     this.serverIP = InetAddress.getLocalHost().getHostAddress();
 
-    // TODO: could be useful to check db before initializing the timeVector to
-    // initialize it as the last log appended (for crash detection)
-
-    // initialize the server's time vector with all zeros
-    this.timeVector = new TimeVector(serversNumber);
-
     // db setup, the name of the db file is serverIP:serverPort.db
     try {
       this.db = new Database(this.serverIP + ":" + Integer.toString(this.serverPort));
     } catch (SQLException e) {
       System.err.println(e);
       throw new IOException();
+    }
+
+    // restore the last time vector stored in the db
+    try {
+      // TODO: use this log to ask other servers for next logs
+      Log log = this.db.getLastLog();
+      if (log != null) {
+        this.timeVector = log.getVectorClock();
+      }
+    } catch (NumberFormatException
+        | SQLException
+        | InvalidDimensionException
+        | InvalidInitValuesException e) {
+      System.out.println(e);
+    }
+
+    // initialize the server's time vector with all zeros
+    if (this.timeVector == null) {
+      this.timeVector = new TimeVector(serversNumber);
     }
 
     // threads setup
