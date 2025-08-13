@@ -64,9 +64,9 @@ public class Server {
     this.serverPort = serverPort;
     this.serverIP = InetAddress.getLocalHost().getHostAddress();
 
-    // db setup, the name of the db file is serverIP:serverPort.db
+    // db setup, the name of the db file is serverIP_serverPort.db
     try {
-      this.db = new Database(this.serverIP + ":" + Integer.toString(this.serverPort));
+      this.db = new Database(this.serverIP + "_" + Integer.toString(this.serverPort));
     } catch (SQLException e) {
       System.err.println(e);
       throw new IOException();
@@ -200,24 +200,19 @@ public class Server {
    * the buffer
    */
   public void manageUpdateBuffer() {
-    synchronized (timeVector) {
-      while (updatesBuffer.isEmpty()) {
-        try {
-          timeVector.wait();
-        } catch (InterruptedException ignore) {
+    while (true) {
+      synchronized (timeVector) {
+        while (updatesBuffer.isEmpty()) {
+          try {
+            timeVector.wait();
+          } catch (InterruptedException ignore) {}
         }
-
-        Log oldLog = updatesBuffer.first();
-        for (Log log : updatesBuffer) {
+        System.out.println("updatesBuffer not empty");
+        TreeSet<Log> updatesBufferClone=new TreeSet<>(updatesBuffer);
+        for (Log log : updatesBufferClone) {
           TimeVector logVC = log.getVectorClock();
           try {
-            assert oldLog.equals(log) || oldLog.getVectorClock().happensBefore(logVC)
-                : "buffer is not sorted";
-          } catch (ImpossibleComparisonException e) {
-          }
-          oldLog = log;
-          try {
-            if (logVC.happensBefore(this.timeVector)) {
+            if (logVC.happensBefore(this.timeVector,log.getServerId())) {
               executeWrite(log);
               updatesBuffer.remove(log);
             }
@@ -229,6 +224,7 @@ public class Server {
       }
     }
   }
+  
 
   /**
    * Writes the log in the db Perfrorms the write in the db Merges the vector clock of the log with
@@ -243,6 +239,7 @@ public class Server {
       this.timeVector.merge(logVC, this.id);
       this.timeVector.notify();
     }
+    System.out.println("Write executed "+"("+log.getWriteKey()+","+log.getWriteValue()+")");
   }
 
   /**

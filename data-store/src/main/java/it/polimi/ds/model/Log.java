@@ -51,6 +51,15 @@ public class Log implements Serializable {
   public String getWriteValue() {
     return new String(this.writeValue);
   }
+  @Override
+  public boolean equals(Object other){
+    if (this == other) 
+      return true; // same reference
+    if (other == null || getClass() != other.getClass()) 
+      return false;
+    Log obj = (Log) other;
+    return this.serverId== obj.serverId && this.vectorClock.equals(obj.vectorClock);
+  }
   /**
    * Class that impose a total order in a collection of Log
    */
@@ -61,6 +70,8 @@ public class Log implements Serializable {
      * Server id is used as a tie breaker
     */
     public int compare(Log log1,Log log2){
+      if(log1.equals(log2))
+        return 0;
       TimeVector vc1= log1.vectorClock;
       TimeVector vc2= log2.vectorClock;
 
@@ -81,5 +92,6 @@ public class Log implements Serializable {
      
     }
   }
+
   
 }

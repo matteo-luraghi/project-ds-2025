@@ -4,6 +4,8 @@ import it.polimi.ds.model.exception.ImpossibleComparisonException;
 import it.polimi.ds.model.exception.InvalidDimensionException;
 import it.polimi.ds.model.exception.InvalidInitValuesException;
 import java.io.Serializable;
+import java.sql.Time;
+import java.util.Arrays;
 
 
 /**
@@ -82,7 +84,7 @@ public class TimeVector implements Serializable {
      * by at most one
      * @throws ImpossibleComparisonException
      */
-   public boolean happensBefore(TimeVector other,int senderID) throws ImpossibleComparisonException{
+    public boolean happensBefore(TimeVector other,int senderID) throws ImpossibleComparisonException{
         if(other.dimension != this.dimension)
             throw new ImpossibleComparisonException();
 
@@ -140,6 +142,20 @@ public class TimeVector implements Serializable {
         vector[i]= Math.max(vector[i],other.vector[i]);
       }
     }
+    
+    @Override
+    public boolean equals(Object other){
+        if (this == other) 
+            return true; // same reference
+        if (other == null || getClass() != other.getClass()) 
+            return false;
+        TimeVector obj= (TimeVector) other;    
+        if(this.dimension!=obj.dimension)
+            return false;
+        return Arrays.equals(this.vector,obj.vector);
+    }
+
+
 
     /**
     * Copy a time vector into a new time vector object
