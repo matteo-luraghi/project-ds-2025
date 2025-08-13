@@ -87,7 +87,7 @@ public class Database {
    * @throws InvalidInitValuesException
    */
   public void insertLog(Log log)
-      throws SQLException, InvalidDimensionException, InvalidInitValuesException {
+      throws SQLException {
     String query = "INSERT INTO log VALUES (?, ?, ?, ?)";
 
     TimeVector vectorClock = log.getVectorClock();

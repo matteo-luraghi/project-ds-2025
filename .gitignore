@@ -93,3 +93,4 @@ mvnw.cmd
 
 # Don't save mock db from storage
 *.db
+data-store/storage

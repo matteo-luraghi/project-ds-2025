@@ -5,6 +5,7 @@ import it.polimi.ds.model.exception.InvalidDimensionException;
 import it.polimi.ds.model.exception.InvalidInitValuesException;
 import java.io.Serializable;
 
+
 /**
  * Implementation of a Vector Clock that represent the temporal advancement
  * of each server. DIMENSION represent the number of servers 
@@ -13,6 +14,7 @@ import java.io.Serializable;
 public class TimeVector implements Serializable {
     private final int dimension;
     private int[] vector;
+    
 
     /**
      * Dimension getter
@@ -93,6 +95,21 @@ public class TimeVector implements Serializable {
         return true;
 
     }
+    /**
+     * returns true iif THIS is smaller than or equal to OTHER in all timestamps, 
+     * @throws ImpossibleComparisonException
+     */
+    public boolean happensBefore(TimeVector other) throws ImpossibleComparisonException{
+        if(other.dimension != this.dimension)
+            throw new ImpossibleComparisonException();
+
+        for(int i=0; i<this.dimension;i++){
+            if(this.vector[i] > other.vector[i])
+                return false;
+        }
+        return true;
+
+    }
 
     /** 
      *  returns the temporal difference THIS - OTHER
@@ -117,22 +134,28 @@ public class TimeVector implements Serializable {
      * @throws ImpossibleComparisonException
      */
     public void merge(TimeVector other, int serverID) throws ImpossibleComparisonException{
-        for (int i = 0; i < vector.length; i++) {
-            if(serverID==i)
-                continue;
-            vector[i]= Math.max(vector[i],other.vector[i]);
-        }
+      for (int i = 0; i < vector.length; i++) {
+        if(serverID==i)
+          continue;
+        vector[i]= Math.max(vector[i],other.vector[i]);
+      }
     }
 
     /**
     * Copy a time vector into a new time vector object
     *
-    * @throws InvalidDimensionException
-    * @throws InvalidInitValuesException
+    * 
     */
-    public static TimeVector copyTimeVector(TimeVector vector) 
-      throws InvalidDimensionException, InvalidInitValuesException {
-      return new TimeVector(vector.getDimension(), vector.getVector());
+    public static TimeVector copyTimeVector(TimeVector vector) {
+      try {
+        return new TimeVector(vector.getDimension(), vector.getVector());
+      } catch (InvalidDimensionException | InvalidInitValuesException ignore) {
+        // this exception cannot never be raised here
+      }
+      return null;
     }
+    
+
 
 }
+

@@ -1,8 +1,14 @@
 package it.polimi.ds.message;
 
+import java.sql.SQLException;
+import java.util.Vector;
+import it.polimi.ds.database.Database;
 import it.polimi.ds.model.Log;
+import it.polimi.ds.model.TimeVector;
+import it.polimi.ds.model.exception.ImpossibleComparisonException;
 import it.polimi.ds.model.exception.InvalidDimensionException;
 import it.polimi.ds.model.exception.InvalidInitValuesException;
+import it.polimi.ds.server.Server;
 
 /**
  * AppendLogMessage
@@ -17,17 +23,41 @@ public class AppendLogMessage extends ServerToServerMessage {
    *
    * @param log the log to save and execute
    */
-  public AppendLogMessage(Log log) throws InvalidDimensionException, InvalidInitValuesException {
+  public AppendLogMessage(Log log){
     this.log =
         new Log(
             log.getVectorClock(), log.getServerId(),
             log.getWriteKey(), log.getWriteValue());
   }
 
+  /**
+   *  Confronts the log's vector clock with the server's vector clock if the first happens before 
+   *  the second the write is performed on the database otherwhise the log is inserted in the buffer
+   */
   @Override
-  public void execute() {
-    // TODO: probably need to pass the server in this function to then save the
+  public void execute(Server server) {
     // log in local db and execute the write query
-    System.out.println("Log needs to be appended");
+    try {
+      TimeVector msgVC = log.getVectorClock();
+      int senderId= log.getServerId();
+      TimeVector vectorClock = server.getTimeVector();
+      synchronized(vectorClock){
+        if(msgVC.happensBefore(vectorClock, senderId)){
+          server.executeWrite(log);
+        }
+        else{
+          server.addToUpdatesBuffer(log);
+        }
+      }
+      System.out.println("Updates received:"+log.getServerId()+","+"("+log.getWriteValue()+","+log.getWriteValue()+")");
+
+    } catch (ImpossibleComparisonException e) {
+      System.out.println(e.getMessage());
+    } catch (SQLException e) {
+      System.out.println("Error in database while executing AppendLog Message");
+    }
+
+    
+    
   }
 }

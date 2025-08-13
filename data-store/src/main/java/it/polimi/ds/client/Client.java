@@ -63,7 +63,7 @@ public class Client {
    *
    * @param message the message to be sent
    */
-  private void sendMessageServer(Serializable message) {
+  /*private*/ public void sendMessageServer(Serializable message) {
     if (this.connected.get()) {
       try {
         outputStream.writeObject(message);
