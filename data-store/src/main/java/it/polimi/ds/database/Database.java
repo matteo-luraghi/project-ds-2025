@@ -86,8 +86,7 @@ public class Database {
    * @throws InvalidDimensionException
    * @throws InvalidInitValuesException
    */
-  public void insertLog(Log log)
-      throws SQLException {
+  public void insertLog(Log log) throws SQLException {
     String query = "INSERT INTO log VALUES (?, ?, ?, ?)";
 
     TimeVector vectorClock = log.getVectorClock();
@@ -109,5 +108,27 @@ public class Database {
       pstatement.setString(4, log.getWriteValue());
       pstatement.executeUpdate();
     }
+  }
+
+  /**
+   * Writes the log and the (key, value) pair in a single transaction, rollbacks if either one fails
+   *
+   * @param log the Log of the write to be performed
+   */
+  public void executeTransactionalWrite(Log log) throws SQLException {
+    this.conn.setAutoCommit(false);
+    try {
+      this.insertLog(log);
+      System.out.println("inserted log");
+      this.insertValue(log.getWriteKey(), log.getWriteValue());
+      System.out.println("inserted value");
+      this.conn.commit();
+    } catch (SQLException e) {
+      System.out.println(e);
+      this.conn.rollback();
+      this.conn.setAutoCommit(true);
+      throw e;
+    }
+    this.conn.setAutoCommit(true);
   }
 }

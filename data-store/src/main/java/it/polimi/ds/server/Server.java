@@ -6,8 +6,6 @@ import it.polimi.ds.model.Log;
 import it.polimi.ds.model.TimeVector;
 import it.polimi.ds.model.exception.ImpossibleComparisonException;
 import it.polimi.ds.model.exception.InvalidDimensionException;
-import it.polimi.ds.model.exception.InvalidInitValuesException;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -23,7 +21,6 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.sql.SQLException;
-import java.sql.Time;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -48,7 +45,7 @@ public class Server {
   private final Thread updateBufferThread;
   private final ExecutorService executor;
   private TimeVector timeVector = null;
-  private TreeSet<Log> updatesBuffer= new TreeSet<Log>(new Log.LogComparator());
+  private TreeSet<Log> updatesBuffer = new TreeSet<Log>(new Log.LogComparator());
 
   /**
    * Constructor, initializes the database connection, the client socket and the multicast socket
@@ -60,7 +57,8 @@ public class Server {
    * @throws IOException
    * @throws InvalidDimensionException
    */
-  public Server(int id, int serverPort, int serversNumber) throws IOException, InvalidDimensionException {
+  public Server(int id, int serverPort, int serversNumber)
+      throws IOException, InvalidDimensionException {
     this.id = id;
     this.serverPort = serverPort;
     this.serverIP = InetAddress.getLocalHost().getHostAddress();
@@ -137,7 +135,7 @@ public class Server {
     // start receiving multicast messages
     this.multicastReceiveThread.start();
 
-    //start managing updates buffer
+    // start managing updates buffer
     this.updateBufferThread.start();
   }
 
@@ -181,57 +179,58 @@ public class Server {
       }
     }
   }
+
   /**
-   * Waits until updatesBuffer is not empty, then for each log inside the buffer 
-   *  if it happens before the current vector clock executes the writes on the database
-   * and removes the log from the buffer
+   * Waits until updatesBuffer is not empty, then for each log inside the buffer if it happens
+   * before the current vector clock executes the writes on the database and removes the log from
+   * the buffer
    */
-    public void manageUpdateBuffer() {
-      synchronized(timeVector){
-        while(updatesBuffer.isEmpty()) {
+  public void manageUpdateBuffer() {
+    synchronized (timeVector) {
+      while (updatesBuffer.isEmpty()) {
+        try {
+          timeVector.wait();
+        } catch (InterruptedException ignore) {
+        }
+
+        Log oldLog = updatesBuffer.first();
+        for (Log log : updatesBuffer) {
+          TimeVector logVC = log.getVectorClock();
           try {
-            timeVector.wait();
-          } catch (InterruptedException ignore) {}
-       
-          Log oldLog= updatesBuffer.first();
-          for (Log log : updatesBuffer) {
-            TimeVector logVC = log.getVectorClock();
-            try {
-              assert oldLog.equals(log) || oldLog.getVectorClock().happensBefore(logVC):"buffer is not sorted";
-            } catch (ImpossibleComparisonException e) {}
-            oldLog=log;
-            try {
-              if(logVC.happensBefore(this.timeVector)){
-                executeWrite(log);
-                updatesBuffer.remove(log);
-              }
-            } catch (ImpossibleComparisonException | SQLException e) {
-              System.out.println("While managing updates buffer:");
-              System.out.println(e.getMessage());
+            assert oldLog.equals(log) || oldLog.getVectorClock().happensBefore(logVC)
+                : "buffer is not sorted";
+          } catch (ImpossibleComparisonException e) {
+          }
+          oldLog = log;
+          try {
+            if (logVC.happensBefore(this.timeVector)) {
+              executeWrite(log);
+              updatesBuffer.remove(log);
             }
+          } catch (ImpossibleComparisonException | SQLException e) {
+            System.out.println("While managing updates buffer:");
+            System.out.println(e.getMessage());
           }
         }
       }
-
     }
+  }
 
   /**
-   * Writes the log in the db
-   * Perfrorms the write in the db
-   * Merges the vector clock of the log with the server's one 
-   * Awakes the buffer updates thread
-   * @param log the log of the write to be performed  
+   * Writes the log in the db Perfrorms the write in the db Merges the vector clock of the log with
+   * the server's one Awakes the buffer updates thread
+   *
+   * @param log the log of the write to be performed
    */
   public void executeWrite(Log log) throws SQLException, ImpossibleComparisonException {
     TimeVector logVC = log.getVectorClock();
-    this.db.insertLog(log);
-    this.db.insertValue(log.getWriteKey(), log.getWriteValue());
-    synchronized(timeVector){
+    this.db.executeTransactionalWrite(log);
+    synchronized (timeVector) {
       this.timeVector.merge(logVC, this.id);
       this.timeVector.notify();
     }
-   
   }
+
   /**
    * Send a multicast message to all other servers
    *
@@ -272,8 +271,9 @@ public class Server {
   }
 
   public void addToUpdatesBuffer(Log log) {
-    synchronized(timeVector){ 
+    synchronized (timeVector) {
       updatesBuffer.add(log);
-      timeVector.notify();}
+      timeVector.notify();
+    }
   }
 }

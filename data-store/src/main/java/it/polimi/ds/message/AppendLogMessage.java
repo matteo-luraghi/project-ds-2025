@@ -49,15 +49,12 @@ public class AppendLogMessage extends ServerToServerMessage {
           server.addToUpdatesBuffer(log);
         }
       }
-      System.out.println("Updates received:"+log.getServerId()+","+"("+log.getWriteValue()+","+log.getWriteValue()+")");
+      System.out.println("Updates received:"+log.getServerId()+","+"("+log.getWriteKey()+","+log.getWriteValue()+")");
 
     } catch (ImpossibleComparisonException e) {
       System.out.println(e.getMessage());
     } catch (SQLException e) {
       System.out.println("Error in database while executing AppendLog Message");
     }
-
-    
-    
   }
 }
