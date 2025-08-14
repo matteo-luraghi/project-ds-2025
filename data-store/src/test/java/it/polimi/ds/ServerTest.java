@@ -11,8 +11,6 @@ import it.polimi.ds.server.Server;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.sql.SQLException;
-import java.util.TreeSet;
-
 import org.junit.jupiter.api.Test;
 
 public class ServerTest {
@@ -22,6 +20,15 @@ public class ServerTest {
   void init() throws IOException, InvalidDimensionException {
     server1 = new Server(0, 1111, 2);
     server2 = new Server(1, 1112, 2);
+  }
+
+  public void cleanup() {
+    if (server1 != null) {
+      server1.stop();
+    }
+    if (server2 != null) {
+      server2.stop();
+    }
   }
 
   @Test
@@ -38,26 +45,28 @@ public class ServerTest {
     } catch (InterruptedException e) {
       System.err.println(e);
     }
+    cleanup();
   }
+
   @Test
-  public void updatesBufferTest() throws IOException, InvalidDimensionException, InvalidInitValuesException, SQLException{
+  public void updatesBufferTest() throws IOException, InvalidDimensionException, InvalidInitValuesException, SQLException {
     init();
-    Log log1= new Log(new TimeVector(2, new int[]{0,2}),1,"x","abcd");
-    Log log2= new Log(new TimeVector(2, new int[]{0,1}),1,"y","abcd");
-  
-    
+    Log log1 = new Log(new TimeVector(2, new int[] {0, 2}), 1, "x", "abcd");
+    Log log2 = new Log(new TimeVector(2, new int[] {0, 1}), 1, "y", "abcd");
+
     server1.start();
 
     server1.addToUpdatesBuffer(log1);
     server1.addToUpdatesBuffer(log2);
 
-/*   try {
-      Thread.sleep(1*60*1000);
-    } catch (InterruptedException e) {
-      System.err.println(e);
-    }
-     */
+    cleanup();
 
-    
+    /*
+     * try {
+     * Thread.sleep(1*60*1000);
+     * } catch (InterruptedException e) {
+     * System.err.println(e);
+     * }
+     */
   }
 }

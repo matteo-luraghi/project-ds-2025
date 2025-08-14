@@ -26,8 +26,8 @@ public class Database {
    * @params serverId server identifier used to name the .db file
    * @throws SQLException
    */
-  public Database(String serverId) throws SQLException {
-    String dbPath = "storage/" + serverId + ".db";
+  public Database(String serverName) throws SQLException {
+    String dbPath = "storage/" + serverName + ".db";
     this.conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
     Statement statement = conn.createStatement();
     statement.execute(
@@ -110,6 +110,11 @@ public class Database {
     }
   }
 
+  /**
+   * Extract the last log from the db
+   *
+   * @throws SQLException
+   */
   public Log getLastLog()
       throws SQLException,
           NumberFormatException,
@@ -149,6 +154,11 @@ public class Database {
     this.conn.setAutoCommit(true);
   }
 
+  /**
+   * Parses the time vector from the db
+   *
+   * @param timeVectorStr the string to parse as a TimeVector
+   */
   private TimeVector parseTimeVector(String timeVectorStr)
       throws NumberFormatException, InvalidDimensionException, InvalidInitValuesException {
     String[] vectorArrayStr = timeVectorStr.split(";");
@@ -158,5 +168,16 @@ public class Database {
       vectorArray[i] = Integer.parseInt(vectorArrayStr[i]);
     }
     return new TimeVector(dimension, vectorArray);
+  }
+
+  /**
+   * Close che connection with the db
+   *
+   * @throws SQLException
+   */
+  public void close() throws SQLException {
+    if (this.conn != null) {
+      this.conn.close();
+    }
   }
 }

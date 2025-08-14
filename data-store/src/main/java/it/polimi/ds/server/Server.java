@@ -22,9 +22,12 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Server
@@ -41,10 +44,14 @@ public class Server {
   private final int multicastPort = 5000;
   private InetAddress multicastGroup;
   private final String multicastAddress = "230.0.0.1";
+  private NetworkInterface networkInterface;
+  private SocketAddress groupAddress;
+  private final AtomicBoolean running = new AtomicBoolean(true);
   private final Thread clientsThread;
   private final Thread multicastReceiveThread;
   private final Thread updateBufferThread;
   private final ExecutorService executor;
+  private final List<ClientHandler> clients = new ArrayList<>();
   private TimeVector timeVector = null;
   private TreeSet<Log> updatesBuffer = new TreeSet<Log>(new Log.LogComparator());
 
@@ -125,15 +132,14 @@ public class Server {
    */
   private void multicastSocketSetup() throws IOException {
     this.multicastGroup = InetAddress.getByName(multicastAddress);
-    NetworkInterface networkInterface =
-        NetworkInterface.getByInetAddress(InetAddress.getLocalHost());
-    SocketAddress groupAddress = new InetSocketAddress(multicastGroup, this.multicastPort);
+    this.networkInterface = NetworkInterface.getByInetAddress(InetAddress.getLocalHost());
+    this.groupAddress = new InetSocketAddress(multicastGroup, this.multicastPort);
 
     this.multicastSocket = new MulticastSocket(this.multicastPort);
     this.multicastSocket.setReuseAddress(true);
     this.multicastSocket.setNetworkInterface(networkInterface);
     // join multicast group
-    this.multicastSocket.joinGroup(groupAddress, networkInterface);
+    this.multicastSocket.joinGroup(this.groupAddress, this.networkInterface);
   }
 
   /**
@@ -155,12 +161,14 @@ public class Server {
 
   /** Thread that accepts connections from clients */
   private void acceptClients() {
-    while (true) {
+    while (this.running.get()) {
       try {
         Socket clientSocket = this.serverSocket.accept();
         clientSocket.setSoTimeout(10000);
         ClientHandler clientHandler = new ClientHandler(this, clientSocket);
 
+        // add the client to the clients
+        this.clients.add(clientHandler);
         // start the client handler thread
         executor.submit(clientHandler);
       } catch (IOException e) {
@@ -172,7 +180,7 @@ public class Server {
   /** Thread that reads messages from the multicast socket */
   private void readMulticastMessages() {
     byte[] buffer = new byte[65535];
-    while (true) {
+    while (this.running.get()) {
       try {
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         this.multicastSocket.receive(packet);
@@ -200,19 +208,20 @@ public class Server {
    * the buffer
    */
   public void manageUpdateBuffer() {
-    while (true) {
+    while (this.running.get()) {
       synchronized (timeVector) {
         while (updatesBuffer.isEmpty()) {
           try {
             timeVector.wait();
-          } catch (InterruptedException ignore) {}
+          } catch (InterruptedException ignore) {
+          }
         }
         System.out.println("updatesBuffer not empty");
-        TreeSet<Log> updatesBufferClone=new TreeSet<>(updatesBuffer);
+        TreeSet<Log> updatesBufferClone = new TreeSet<>(updatesBuffer);
         for (Log log : updatesBufferClone) {
           TimeVector logVC = log.getVectorClock();
           try {
-            if (logVC.happensBefore(this.timeVector,log.getServerId())) {
+            if (logVC.happensBefore(this.timeVector, log.getServerId())) {
               executeWrite(log);
               updatesBuffer.remove(log);
             }
@@ -224,7 +233,6 @@ public class Server {
       }
     }
   }
-  
 
   /**
    * Writes the log in the db Perfrorms the write in the db Merges the vector clock of the log with
@@ -239,7 +247,8 @@ public class Server {
       this.timeVector.merge(logVC, this.id);
       this.timeVector.notify();
     }
-    System.out.println("Write executed "+"("+log.getWriteKey()+","+log.getWriteValue()+")");
+    System.out.println(
+        "Write executed " + "(" + log.getWriteKey() + "," + log.getWriteValue() + ")");
   }
 
   /**
@@ -281,10 +290,67 @@ public class Server {
     return this.timeVector;
   }
 
+  /**
+   * Add log to Buffer
+   *
+   * @param log the log to add
+   */
   public void addToUpdatesBuffer(Log log) {
     synchronized (timeVector) {
       updatesBuffer.add(log);
       timeVector.notify();
+    }
+  }
+
+  /** Stop all the threads, close sockets and db connection */
+  public void stop() {
+    // stop all the clients
+    for (ClientHandler c : clients) {
+      c.disconnect();
+    }
+    // stop running threads
+    this.running.set(false);
+
+    // stop the active threads
+    if (this.clientsThread != null && this.clientsThread.isAlive()) {
+      this.clientsThread.interrupt();
+    }
+    if (this.multicastReceiveThread != null && this.multicastReceiveThread.isAlive()) {
+      this.multicastReceiveThread.interrupt();
+    }
+    if (this.updateBufferThread != null && this.updateBufferThread.isAlive()) {
+      synchronized (timeVector) {
+        this.updateBufferThread.interrupt();
+      }
+    }
+
+    // stop accepting new client connections
+    try {
+      this.serverSocket.close();
+    } catch (IOException e) {
+      System.err.println("Error closing server socket: " + e.getMessage());
+    }
+
+    // stop receiving multicast messages
+    if (this.multicastSocket != null && !this.multicastSocket.isClosed()) {
+      try {
+        this.multicastSocket.leaveGroup(this.groupAddress, this.networkInterface);
+        this.multicastSocket.close();
+      } catch (IOException e) {
+        System.err.println("Error closing multicast socket: " + e.getMessage());
+      }
+    }
+
+    // shutdown the executor to stop all client handler threads
+    if (this.executor != null && !this.executor.isShutdown()) {
+      this.executor.shutdownNow();
+    }
+
+    // close the db connection
+    try {
+      this.db.close();
+    } catch (SQLException e) {
+      System.err.println("Error closing the database: " + e.getMessage());
     }
   }
 }
