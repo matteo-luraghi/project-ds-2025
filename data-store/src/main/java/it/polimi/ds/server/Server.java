@@ -216,7 +216,6 @@ public class Server {
           } catch (InterruptedException ignore) {
           }
         }
-        System.out.println("updatesBuffer not empty");
         TreeSet<Log> updatesBufferClone = new TreeSet<>(updatesBuffer);
         for (Log log : updatesBufferClone) {
           TimeVector logVC = log.getVectorClock();
