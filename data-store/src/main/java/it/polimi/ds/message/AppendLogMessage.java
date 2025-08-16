@@ -47,6 +47,9 @@ public class AppendLogMessage extends ServerToServerMessage {
       TimeVector msgVC = log.getVectorClock();
       int senderId= log.getServerId();
       TimeVector vectorClock = server.getTimeVector();
+
+      System.out.println("Updates received:"+log.getServerId()+","+"("+log.getWriteKey()+","+log.getWriteValue()+")");
+      
       synchronized(vectorClock){
         if(msgVC.happensBefore(vectorClock, senderId)){
           server.executeWrite(log);
@@ -55,7 +58,7 @@ public class AppendLogMessage extends ServerToServerMessage {
           server.addToUpdatesBuffer(log);
         }
       }
-      System.out.println("Updates received:"+log.getServerId()+","+"("+log.getWriteKey()+","+log.getWriteValue()+")");
+     
 
     } catch (ImpossibleComparisonException e) {
       System.out.println(e.getMessage());

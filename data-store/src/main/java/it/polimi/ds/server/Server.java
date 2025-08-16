@@ -14,6 +14,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.DatagramPacket;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
@@ -21,9 +23,13 @@ import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.net.SocketException;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
+import java.util.Scanner;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,7 +38,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Server
  *
- * <p>handles clients' requests and connects to other servers to keep state coherent
+ * <p>
+ * handles clients' requests and connects to other servers to keep state
+ * coherent
  */
 public class Server {
   private int id;
@@ -56,11 +64,12 @@ public class Server {
   private TreeSet<Log> updatesBuffer = new TreeSet<Log>(new Log.LogComparator());
 
   /**
-   * Constructor, initializes the database connection, the client socket and the multicast socket
+   * Constructor, initializes the database connection, the client socket and the
+   * multicast socket
    * for the communication with the other servers
    *
-   * @param id the server id
-   * @param serverPort the port where the server is running
+   * @param id            the server id
+   * @param serverPort    the port where the server is running
    * @param serversNumber the number of the servers in the network
    * @throws IOException
    * @throws InvalidDimensionException
@@ -69,6 +78,10 @@ public class Server {
       throws IOException, InvalidDimensionException {
     this.id = id;
     this.serverPort = serverPort;
+
+    // select the correct network interface
+    this.setupNetworkInterface();
+
     this.serverIP = InetAddress.getLocalHost().getHostAddress();
 
     // db setup, the name of the db file is serverIP_serverPort.db
@@ -116,13 +129,8 @@ public class Server {
    */
   private void clientSocketSetup() throws IOException {
     this.serverSocket = new ServerSocket(this.serverPort);
-    System.out.println("Server running at: " + this.serverIP);
-    System.out.println("Port for client connections: " + this.serverPort);
-    System.out.println(
-        "Multicast group info:\n   - Port: "
-            + this.multicastPort
-            + "\n   - IP: "
-            + this.multicastAddress);
+    System.out.println("\nServer running at: " + this.serverIP);
+    System.out.println("Port for client connections: " + this.serverPort + "\n");
   }
 
   /**
@@ -132,18 +140,24 @@ public class Server {
    */
   private void multicastSocketSetup() throws IOException {
     this.multicastGroup = InetAddress.getByName(multicastAddress);
-    this.networkInterface = NetworkInterface.getByInetAddress(InetAddress.getLocalHost());
     this.groupAddress = new InetSocketAddress(multicastGroup, this.multicastPort);
 
     this.multicastSocket = new MulticastSocket(this.multicastPort);
     this.multicastSocket.setReuseAddress(true);
-    this.multicastSocket.setNetworkInterface(networkInterface);
+    this.multicastSocket.setNetworkInterface(this.networkInterface);
     // join multicast group
     this.multicastSocket.joinGroup(this.groupAddress, this.networkInterface);
+    System.out.println(
+        "Multicast group info:\n   - Port: "
+            + this.multicastPort
+            + "\n   - IP: "
+            + this.multicastAddress
+            + "\n");
   }
 
   /**
-   * Start the server by opening the socket, accepting sockets connections and joining the multicast
+   * Start the server by opening the socket, accepting sockets connections and
+   * joining the multicast
    * group
    *
    * @throws IOException
@@ -186,8 +200,7 @@ public class Server {
         this.multicastSocket.receive(packet);
         System.out.println("multicast message received");
 
-        ByteArrayInputStream bis =
-            new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
+        ByteArrayInputStream bis = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
         ObjectInputStream ois = new ObjectInputStream(bis);
         Object msg = ois.readObject();
 
@@ -203,8 +216,10 @@ public class Server {
   }
 
   /**
-   * Waits until updatesBuffer is not empty, then for each log inside the buffer if it happens
-   * before the current vector clock executes the writes on the database and removes the log from
+   * Waits until updatesBuffer is not empty, then for each log inside the buffer
+   * if it happens
+   * before the current vector clock executes the writes on the database and
+   * removes the log from
    * the buffer
    */
   public void manageUpdateBuffer() {
@@ -234,7 +249,8 @@ public class Server {
   }
 
   /**
-   * Writes the log in the db Perfrorms the write in the db Merges the vector clock of the log with
+   * Writes the log in the db Perfrorms the write in the db Merges the vector
+   * clock of the log with
    * the server's one Awakes the buffer updates thread
    *
    * @param log the log of the write to be performed
@@ -264,8 +280,7 @@ public class Server {
       oos.flush();
 
       byte[] data = bos.toByteArray();
-      DatagramPacket packet =
-          new DatagramPacket(data, data.length, this.multicastGroup, this.multicastPort);
+      DatagramPacket packet = new DatagramPacket(data, data.length, this.multicastGroup, this.multicastPort);
       this.multicastSocket.send(packet);
       System.out.println("multicast msg send");
 
@@ -298,6 +313,72 @@ public class Server {
     synchronized (timeVector) {
       updatesBuffer.add(log);
       timeVector.notify();
+    }
+  }
+  private List<NetworkInterface> getValidInterfaces() throws SocketException {
+    List<NetworkInterface> result = new ArrayList<>();
+
+    for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+        if (!nif.isUp() || !nif.supportsMulticast() || nif.isLoopback()) continue;
+
+        boolean hasIPv4 = false;
+        for (InetAddress addr : Collections.list(nif.getInetAddresses())) {
+            if (addr instanceof Inet4Address && !addr.isLoopbackAddress() && !addr.isLinkLocalAddress()) {
+                hasIPv4 = true;
+                break;
+            }
+        }
+
+        if (hasIPv4) {
+            result.add(nif);
+        }
+    }
+    return result;
+}
+
+  /**
+   * Selects the only valid network interface or lets the user choose it
+   */
+  private void setupNetworkInterface() throws SocketException {
+    // set prefernce on IPv4
+    System.setProperty("java.net.preferIPv4Stack", "true");
+   
+    // filter only valid network interfaces
+    List<NetworkInterface> validNets =getValidInterfaces();
+    
+    // if 1 valid network interface choose that one
+    if (validNets.size() == 1) {
+      this.networkInterface = validNets.getFirst();
+    } else {
+      // show network interfaces and ip addresses
+      for (int i = 0; i < validNets.size(); i++) {
+        System.out.println(i + ") " + validNets.get(i).getName() + ":");
+        Enumeration<InetAddress> addresses = validNets.get(i).getInetAddresses();
+
+        while (addresses.hasMoreElements()) {
+          InetAddress addr = addresses.nextElement();
+          System.out.println("- " + addr.getHostAddress());
+        }
+      }
+      // let the user choose the network interface
+      Scanner scanner = new Scanner(System.in);
+      boolean valid = false;
+      int netIdx = 10000;
+      while (!valid) {
+        try {
+          System.out.println("Select the number of the network interface to use:");
+          netIdx = Integer.parseInt(scanner.nextLine());
+        } catch (NumberFormatException e) {
+          System.out.println("Insert a valid number");
+        }
+        if (netIdx < validNets.size()) {
+          this.networkInterface = validNets.get(netIdx);
+          valid = true;
+          scanner.close();
+        } else {
+          System.out.println("Insert a valid number");
+        }
+      }
     }
   }
 

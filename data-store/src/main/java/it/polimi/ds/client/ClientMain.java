@@ -24,7 +24,7 @@ public class ClientMain {
         do {
           System.out.println("Insert the server ip address:");
           ip = scanner.nextLine();
-          System.out.println("Inser the server port:");
+          System.out.println("Insert the server port:");
           String portStr = scanner.nextLine();
           try {
             int serverPort = Integer.parseInt(portStr);
