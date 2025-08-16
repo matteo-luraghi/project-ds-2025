@@ -316,20 +316,37 @@ public class Server {
       timeVector.notify();
     }
   }
+  private List<NetworkInterface> getValidInterfaces() throws SocketException {
+    List<NetworkInterface> result = new ArrayList<>();
+
+    for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+        if (!nif.isUp() || !nif.supportsMulticast() || nif.isLoopback()) continue;
+
+        boolean hasIPv4 = false;
+        for (InetAddress addr : Collections.list(nif.getInetAddresses())) {
+            if (addr instanceof Inet4Address && !addr.isLoopbackAddress() && !addr.isLinkLocalAddress()) {
+                hasIPv4 = true;
+                break;
+            }
+        }
+
+        if (hasIPv4) {
+            result.add(nif);
+        }
+    }
+    return result;
+}
 
   /**
    * Selects the only valid network interface or lets the user choose it
    */
   private void setupNetworkInterface() throws SocketException {
-    // get network interfaces
-    List<NetworkInterface> nets = Collections.list(NetworkInterface.getNetworkInterfaces());
+    // set prefernce on IPv4
+    System.setProperty("java.net.preferIPv4Stack", "true");
+   
     // filter only valid network interfaces
-    List<NetworkInterface> validNets = new ArrayList<>();
-    for (NetworkInterface nif : nets) {
-      if (nif.isUp() && nif.supportsMulticast() && !nif.isLoopback()) {
-        validNets.add(nif);
-      }
-    }
+    List<NetworkInterface> validNets =getValidInterfaces();
+    
     // if 1 valid network interface choose that one
     if (validNets.size() == 1) {
       this.networkInterface = validNets.getFirst();
@@ -341,13 +358,6 @@ public class Server {
 
         while (addresses.hasMoreElements()) {
           InetAddress addr = addresses.nextElement();
-          // Only IPv4 and IPv6 addresses
-          if (!(addr instanceof Inet4Address || addr instanceof Inet6Address))
-            continue;
-
-          // Exclude loopback and link-local
-          if (addr.isLoopbackAddress() || addr.isLinkLocalAddress())
-            continue;
           System.out.println("- " + addr.getHostAddress());
         }
       }
