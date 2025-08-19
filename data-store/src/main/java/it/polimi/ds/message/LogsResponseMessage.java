@@ -56,14 +56,8 @@ public class LogsResponseMessage extends ServerToServerMessage {
         }
 
       } catch (ImpossibleComparisonException e) {
-        // TODO: check if this makes sense
-        try {
-          server.sendMulticastMessage(
-              new LogsRequestMessage(serverId, server.getDb().getLastLogRowId()));
-        } catch (NumberFormatException | SQLException e1) {
-          System.out.println(e.getMessage());
-        }
         System.out.println(e.getMessage());
+        System.out.println("Ignoring received log");
       } catch (SQLException e) {
         System.out.println("Error in database while writing missing logs");
       }
