@@ -10,17 +10,21 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Database
  *
- * <p>handles sqlite database initialization, writes and reads
+ * <p>
+ * handles sqlite database initialization, writes and reads
  */
 public class Database {
   private final Connection conn;
 
   /**
-   * Connects (or creates) to a sqlite database and creates the data_store table and the log table
+   * Connects (or creates) to a sqlite database and creates the data_store table
+   * and the log table
    * if not already present
    *
    * @params serverId server identifier used to name the .db file
@@ -68,7 +72,8 @@ public class Database {
       pstatement.setString(1, key);
 
       try (ResultSet res = pstatement.executeQuery()) {
-        if (!res.isBeforeFirst()) return null;
+        if (!res.isBeforeFirst())
+          return null;
         else {
           res.next();
           String value = res.getString("value");
@@ -117,13 +122,14 @@ public class Database {
    */
   public Log getLastLog()
       throws SQLException,
-          NumberFormatException,
-          InvalidDimensionException,
-          InvalidInitValuesException {
+      NumberFormatException,
+      InvalidDimensionException,
+      InvalidInitValuesException {
     String query = "SELECT * FROM log ORDER BY rowid DESC LIMIT 1";
     Statement statement = conn.createStatement();
     try (ResultSet res = statement.executeQuery(query)) {
-      if (!res.isBeforeFirst()) return null;
+      if (!res.isBeforeFirst())
+        return null;
       else {
         res.next();
         TimeVector vectorClock = this.parseTimeVector(res.getString("vector_clock"));
@@ -136,7 +142,8 @@ public class Database {
   }
 
   /**
-   * Writes the log and the (key, value) pair in a single transaction, rollbacks if either one fails
+   * Writes the log and the (key, value) pair in a single transaction, rollbacks
+   * if either one fails
    *
    * @param log the Log of the write to be performed
    */
@@ -152,6 +159,57 @@ public class Database {
       throw e;
     }
     this.conn.setAutoCommit(true);
+  }
+
+  /**
+   * Extract the last log's rowid from the db
+   *
+   * @throws SQLException
+   */
+  public int getLastLogRowId()
+      throws SQLException {
+    String query = "SELECT rowid FROM log ORDER BY rowid DESC LIMIT 1";
+    Statement statement = conn.createStatement();
+    try (ResultSet res = statement.executeQuery(query)) {
+      if (!res.isBeforeFirst())
+        return 0;
+      else {
+        res.next();
+        int rowid = Integer.parseInt(res.getString("rowid"));
+        return rowid;
+      }
+    }
+  }
+
+  /**
+   * Returns all the logs following a given log
+   *
+   * @param rowid the rowid of the given log
+   */
+  public List<Log> getFollowingLogs(int rowid)
+      throws SQLException, InvalidDimensionException, InvalidInitValuesException {
+    List<Log> followingLogs = new ArrayList<>();
+
+    String query = "SELECT * FROM log WHERE rowid > ?";
+    try (PreparedStatement pstatement = this.conn.prepareStatement(query)) {
+      pstatement.setString(1, Integer.toString(rowid));
+      try (ResultSet res = pstatement.executeQuery(query)) {
+        if (!res.isBeforeFirst())
+          return null;
+        else {
+          // cycle all results and add the logs to the ArrayList
+          while (res.next()) {
+            TimeVector vectorClock = this.parseTimeVector(res.getString("vector_clock"));
+            int serverId = Integer.parseInt(res.getString("server_id"));
+            String writeKey = res.getString("write_key");
+            String writeValue = res.getString("write_value");
+            followingLogs.add(new Log(vectorClock, serverId, writeKey, writeValue));
+          }
+        }
+      }
+    }
+
+    return followingLogs;
   }
 
   /**

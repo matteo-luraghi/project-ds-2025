@@ -15,7 +15,6 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.DatagramPacket;
 import java.net.Inet4Address;
-import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
@@ -94,7 +93,6 @@ public class Server {
 
     // restore the last time vector stored in the db
     try {
-      // TODO: use this log to ask other servers for next logs
       Log log = this.db.getLastLog();
       if (log != null) {
         this.timeVector = log.getVectorClock();
@@ -315,37 +313,38 @@ public class Server {
       timeVector.notify();
     }
   }
+
+  /** Get all the valid interface of the machine */
   private List<NetworkInterface> getValidInterfaces() throws SocketException {
     List<NetworkInterface> result = new ArrayList<>();
 
     for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-        if (!nif.isUp() || !nif.supportsMulticast() || nif.isLoopback()) continue;
+      if (!nif.isUp() || !nif.supportsMulticast() || nif.isLoopback())
+        continue;
 
-        boolean hasIPv4 = false;
-        for (InetAddress addr : Collections.list(nif.getInetAddresses())) {
-            if (addr instanceof Inet4Address && !addr.isLoopbackAddress() && !addr.isLinkLocalAddress()) {
-                hasIPv4 = true;
-                break;
-            }
+      boolean hasIPv4 = false;
+      for (InetAddress addr : Collections.list(nif.getInetAddresses())) {
+        if (addr instanceof Inet4Address && !addr.isLoopbackAddress() && !addr.isLinkLocalAddress()) {
+          hasIPv4 = true;
+          break;
         }
+      }
 
-        if (hasIPv4) {
-            result.add(nif);
-        }
+      if (hasIPv4) {
+        result.add(nif);
+      }
     }
     return result;
-}
+  }
 
-  /**
-   * Selects the only valid network interface or lets the user choose it
-   */
+  /** Selects the only valid network interface or lets the user choose it */
   private void setupNetworkInterface() throws SocketException {
     // set prefernce on IPv4
     System.setProperty("java.net.preferIPv4Stack", "true");
-   
+
     // filter only valid network interfaces
-    List<NetworkInterface> validNets =getValidInterfaces();
-    
+    List<NetworkInterface> validNets = getValidInterfaces();
+
     // if 1 valid network interface choose that one
     if (validNets.size() == 1) {
       this.networkInterface = validNets.getFirst();
