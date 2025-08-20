@@ -38,9 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Server
  *
- * <p>
- * handles clients' requests and connects to other servers to keep state
- * coherent
+ * <p>handles clients' requests and connects to other servers to keep state coherent
  */
 public class Server {
   private int id;
@@ -58,7 +56,7 @@ public class Server {
   private final Thread clientsThread;
   private final Thread multicastReceiveThread;
   private final Thread updateBufferThread;
-  private AtomicBoolean isBufferReady= new AtomicBoolean(false);
+  private AtomicBoolean isBufferReady = new AtomicBoolean(false);
   private int UpdateMissLoops = 0;
   private final int maxUpdateMissLoops = 1;
   private final ExecutorService executor;
@@ -67,12 +65,11 @@ public class Server {
   private TreeSet<Log> updatesBuffer = new TreeSet<Log>(new Log.LogComparator());
 
   /**
-   * Constructor, initializes the database connection, the client socket and the
-   * multicast socket
+   * Constructor, initializes the database connection, the client socket and the multicast socket
    * for the communication with the other servers
    *
-   * @param id            the server id
-   * @param serverPort    the port where the server is running
+   * @param id the server id
+   * @param serverPort the port where the server is running
    * @param serversNumber the number of the servers in the network
    * @throws IOException
    * @throws InvalidDimensionException
@@ -158,8 +155,7 @@ public class Server {
   }
 
   /**
-   * Start the server by opening the socket, accepting sockets connections and
-   * joining the multicast
+   * Start the server by opening the socket, accepting sockets connections and joining the multicast
    * group
    *
    * @throws IOException
@@ -202,7 +198,8 @@ public class Server {
         this.multicastSocket.receive(packet);
         System.out.println("multicast message received");
 
-        ByteArrayInputStream bis = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
+        ByteArrayInputStream bis =
+            new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
         ObjectInputStream ois = new ObjectInputStream(bis);
         Object msg = ois.readObject();
 
@@ -218,15 +215,10 @@ public class Server {
   }
 
   /**
-   * Waits until updatesBuffer is not empty 
-   * or  there are log that cannot be processed,
-   * then for each log inside the buffer
-   * if it happens
-   * before the current vector clock executes the writes on the database and
-   * removes the log from the buffer.
-   * If at least one log is not processed 
-   * for "maxUpdateMissLoops" consecutive iteration 
-   * then a LogsRequestMessage is sent 
+   * Waits until updatesBuffer is not empty or there are log that cannot be processed, then for each
+   * log inside the buffer if it happens before the current vector clock executes the writes on the
+   * database and removes the log from the buffer. If at least one log is not processed for
+   * "maxUpdateMissLoops" consecutive iteration then a LogsRequestMessage is sent
    */
   public void manageUpdateBuffer() {
     while (this.running.get()) {
@@ -235,22 +227,23 @@ public class Server {
           // waiting for new logs
           try {
             timeVector.wait();
-          } catch (InterruptedException ignore) {}
+          } catch (InterruptedException ignore) {
+          }
         }
         // clone the buffer for safety
         TreeSet<Log> updatesBufferClone = new TreeSet<>(updatesBuffer);
 
-        boolean haveLostUpdates= false;
+        boolean haveLostUpdates = false;
         for (Log log : updatesBufferClone) {
           TimeVector logVC = log.getVectorClock();
           try {
-            if (logVC.happensBefore(this.timeVector, log.getServerId())) { 
+            if (logVC.happensBefore(this.timeVector, log.getServerId())) {
               // causal consistency satisfied, execute the write
               executeWrite(log);
-              updatesBuffer.remove(log); 
-            }else{
+              updatesBuffer.remove(log);
+            } else {
               // write cannot be executed
-              haveLostUpdates=true;
+              haveLostUpdates = true;
             }
           } catch (ImpossibleComparisonException | SQLException e) {
             System.out.println("While managing updates buffer:");
@@ -261,30 +254,32 @@ public class Server {
         this.isBufferReady.set(false);
 
         // if during this loop an update is not executed
-        if(haveLostUpdates){
+        if (haveLostUpdates) {
           // increment counter
           UpdateMissLoops++;
-          if(UpdateMissLoops > maxUpdateMissLoops){
+          if (UpdateMissLoops > maxUpdateMissLoops) {
             // too many consecutive loops with update miss, send a log request
             sendLogsRequestMessage();
           }
-        }else{
+        } else {
           // no update lost, reset the counter
-          UpdateMissLoops=0;
+          UpdateMissLoops = 0;
         }
-       
       }
     }
   }
 
+  /** Send a LogRequestMessage in multicast to get missing logs */
   private void sendLogsRequestMessage() {
-    // TODO implement sendLogsRequestMessage
-    throw new UnsupportedOperationException("Unimplemented method 'sendLogsRequestMessage'");
+    try {
+      this.sendMulticastMessage(new LogsRequestMessage(this.getDb().getLastLog()));
+    } catch (SQLException | InvalidDimensionException | InvalidInitValuesException e) {
+      System.out.println(e);
+    }
   }
 
   /**
-   * Writes the log in the db Perfrorms the write in the db Merges the vector
-   * clock of the log with
+   * Writes the log in the db Perfrorms the write in the db Merges the vector clock of the log with
    * the server's one Awakes the buffer updates thread
    *
    * @param log the log of the write to be performed
@@ -314,7 +309,8 @@ public class Server {
       oos.flush();
 
       byte[] data = bos.toByteArray();
-      DatagramPacket packet = new DatagramPacket(data, data.length, this.multicastGroup, this.multicastPort);
+      DatagramPacket packet =
+          new DatagramPacket(data, data.length, this.multicastGroup, this.multicastPort);
       this.multicastSocket.send(packet);
       System.out.println("multicast msg send");
 
@@ -356,12 +352,13 @@ public class Server {
     List<NetworkInterface> result = new ArrayList<>();
 
     for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-      if (!nif.isUp() || !nif.supportsMulticast() || nif.isLoopback())
-        continue;
+      if (!nif.isUp() || !nif.supportsMulticast() || nif.isLoopback()) continue;
 
       boolean hasIPv4 = false;
       for (InetAddress addr : Collections.list(nif.getInetAddresses())) {
-        if (addr instanceof Inet4Address && !addr.isLoopbackAddress() && !addr.isLinkLocalAddress()) {
+        if (addr instanceof Inet4Address
+            && !addr.isLoopbackAddress()
+            && !addr.isLinkLocalAddress()) {
           hasIPv4 = true;
           break;
         }

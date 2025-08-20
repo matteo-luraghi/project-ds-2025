@@ -13,33 +13,25 @@ import java.util.List;
  * <p>used to ask another server for missing logs
  */
 public class LogsRequestMessage extends ServerToServerMessage {
-  private final int serverId;
-  private final int lastLogRowId;
+  private final Log lastLog;
 
   /**
    * Constructor
    *
-   * @param serverId the id of the receiver
-   * @param lastLogRowId the last log rowid of the sender
+   * @param lastLog the last log of the sender
    */
-  public LogsRequestMessage(int serverId, int lastLogRowId) {
-    this.serverId = serverId;
-    this.lastLogRowId = lastLogRowId;
+  public LogsRequestMessage(Log lastLog) {
+    this.lastLog = lastLog;
   }
 
   /** Gets the missing logs from db and sends them back to the requesting server */
   @Override
   public void execute(Server server) {
-    // only the correct server answers
-    if (server.getServerId() != this.serverId) {
-      return;
-    }
-
     try {
       // get the missing logs from db
-      List<Log> missingLogs = server.getDb().getFollowingLogs(this.lastLogRowId);
+      List<Log> missingLogs = server.getDb().getFollowingLogs(this.lastLog);
       // send the missing logs
-      server.sendMulticastMessage(new LogsResponseMessage(server.getServerId(), missingLogs));
+      server.sendMulticastMessage(new LogsResponseMessage(missingLogs));
     } catch (SQLException | InvalidDimensionException | InvalidInitValuesException e) {
       System.out.println(e);
     }

@@ -162,35 +162,15 @@ public class Database {
   }
 
   /**
-   * Extract the last log's rowid from the db
-   *
-   * @throws SQLException
-   */
-  public int getLastLogRowId()
-      throws SQLException {
-    String query = "SELECT rowid FROM log ORDER BY rowid DESC LIMIT 1";
-    Statement statement = conn.createStatement();
-    try (ResultSet res = statement.executeQuery(query)) {
-      if (!res.isBeforeFirst())
-        return 0;
-      else {
-        res.next();
-        int rowid = Integer.parseInt(res.getString("rowid"));
-        return rowid;
-      }
-    }
-  }
-
-  /**
    * Returns all the logs following a given log
    *
-   * @param rowid the rowid of the given log
+   * @param log the given log
    */
-  public List<Log> getFollowingLogs(int rowid)
+  public List<Log> getFollowingLogs(Log log)
       throws SQLException, InvalidDimensionException, InvalidInitValuesException {
     List<Log> followingLogs = new ArrayList<>();
 
-    String query = "SELECT * FROM log WHERE rowid > ?";
+    String query = "SELECT * FROM log";
     try (PreparedStatement pstatement = this.conn.prepareStatement(query)) {
       pstatement.setString(1, Integer.toString(rowid));
       try (ResultSet res = pstatement.executeQuery(query)) {

@@ -13,17 +13,14 @@ import java.util.List;
  * <p>used to send the missing logs to a server
  */
 public class LogsResponseMessage extends ServerToServerMessage {
-  private final int serverId;
   private final List<Log> missingLogs;
 
   /**
    * Constructor
    *
-   * @param serverId the id of the sender
    * @param missingLogs the list of logs to append to the receiver
    */
-  public LogsResponseMessage(int serverId, List<Log> missingLogs) {
-    this.serverId = serverId;
+  public LogsResponseMessage(List<Log> missingLogs) {
     this.missingLogs = missingLogs;
   }
 
