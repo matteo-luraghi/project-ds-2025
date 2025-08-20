@@ -281,13 +281,18 @@ public class Server {
   }
 
   /**
+   * if the log is not already in the db then
    * Writes the log in the db Perfrorms the write in the db Merges the vector clock of the log with
    * the server's one Awakes the buffer updates thread
+   * otherwhise nothing happens
    *
    * @param log the log of the write to be performed
    */
   public void executeWrite(Log log) throws SQLException, ImpossibleComparisonException {
     TimeVector logVC = log.getVectorClock();
+    if(logVC.lessOrEqual(timeVector))
+      //ignore duplicated writes
+      return;
     this.db.executeTransactionalWrite(log);
     synchronized (timeVector) {
       this.timeVector.merge(logVC, this.id);
