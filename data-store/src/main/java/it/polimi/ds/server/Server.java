@@ -26,6 +26,7 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
@@ -299,7 +300,10 @@ public class Server {
             + log.getWriteKey()
             + ","
             + log.getWriteValue()
-            + ")");
+            + ") "
+            + "vc: "
+            + Arrays.toString(log.getVectorClock().getVector())
+            );
   }
 
   /**
