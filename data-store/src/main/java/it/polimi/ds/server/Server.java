@@ -1,6 +1,7 @@
 package it.polimi.ds.server;
 
 import it.polimi.ds.database.Database;
+import it.polimi.ds.message.LogsRequestMessage;
 import it.polimi.ds.message.ServerToServerMessage;
 import it.polimi.ds.model.Log;
 import it.polimi.ds.model.TimeVector;
@@ -57,6 +58,9 @@ public class Server {
   private final Thread clientsThread;
   private final Thread multicastReceiveThread;
   private final Thread updateBufferThread;
+  private AtomicBoolean isBufferReady= new AtomicBoolean(false);
+  private int UpdateMissLoops = 0;
+  private final int maxUpdateMissLoops = 1;
   private final ExecutorService executor;
   private final List<ClientHandler> clients = new ArrayList<>();
   private TimeVector timeVector = null;
@@ -214,36 +218,68 @@ public class Server {
   }
 
   /**
-   * Waits until updatesBuffer is not empty, then for each log inside the buffer
+   * Waits until updatesBuffer is not empty 
+   * or  there are log that cannot be processed,
+   * then for each log inside the buffer
    * if it happens
    * before the current vector clock executes the writes on the database and
-   * removes the log from
-   * the buffer
+   * removes the log from the buffer.
+   * If at least one log is not processed 
+   * for "maxUpdateMissLoops" consecutive iteration 
+   * then a LogsRequestMessage is sent 
    */
   public void manageUpdateBuffer() {
     while (this.running.get()) {
       synchronized (timeVector) {
-        while (updatesBuffer.isEmpty()) {
+        while (!this.isBufferReady.get()) {
+          // waiting for new logs
           try {
             timeVector.wait();
-          } catch (InterruptedException ignore) {
-          }
+          } catch (InterruptedException ignore) {}
         }
+        // clone the buffer for safety
         TreeSet<Log> updatesBufferClone = new TreeSet<>(updatesBuffer);
+
+        boolean haveLostUpdates= false;
         for (Log log : updatesBufferClone) {
           TimeVector logVC = log.getVectorClock();
           try {
-            if (logVC.happensBefore(this.timeVector, log.getServerId())) {
+            if (logVC.happensBefore(this.timeVector, log.getServerId())) { 
+              // causal consistency satisfied, execute the write
               executeWrite(log);
-              updatesBuffer.remove(log);
+              updatesBuffer.remove(log); 
+            }else{
+              // write cannot be executed
+              haveLostUpdates=true;
             }
           } catch (ImpossibleComparisonException | SQLException e) {
             System.out.println("While managing updates buffer:");
             System.out.println(e.getMessage());
           }
         }
+        // set the buffer to not ready
+        this.isBufferReady.set(false);
+
+        // if during this loop an update is not executed
+        if(haveLostUpdates){
+          // increment counter
+          UpdateMissLoops++;
+          if(UpdateMissLoops > maxUpdateMissLoops){
+            // too many consecutive loops with update miss, send a log request
+            sendLogsRequestMessage();
+          }
+        }else{
+          // no update lost, reset the counter
+          UpdateMissLoops=0;
+        }
+       
       }
     }
+  }
+
+  private void sendLogsRequestMessage() {
+    // TODO implement sendLogsRequestMessage
+    throw new UnsupportedOperationException("Unimplemented method 'sendLogsRequestMessage'");
   }
 
   /**
@@ -310,6 +346,7 @@ public class Server {
   public void addToUpdatesBuffer(Log log) {
     synchronized (timeVector) {
       updatesBuffer.add(log);
+      isBufferReady.set(true);
       timeVector.notify();
     }
   }
