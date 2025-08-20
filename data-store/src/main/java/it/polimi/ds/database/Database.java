@@ -32,13 +32,20 @@ public class Database {
   public Database(String serverName) throws SQLException {
     String dbPath = "storage/" + serverName + ".db";
     this.conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
-    Statement statement = conn.createStatement();
+    Statement statement = this.conn.createStatement();
     statement.execute(
         "CREATE TABLE IF NOT EXISTS data_store (key TEXT " + "PRIMARY KEY, value TEXT)");
     statement.execute(
         "CREATE TABLE IF NOT EXISTS log (vector_clock TEXT, server_id INT, "
             + "write_key TEXT, write_value TEXT,  "
             + "PRIMARY KEY (vector_clock, server_id))");
+  }
+
+  /** Removes all the rows from both the tables in the db */
+  public void resetDatabase() throws SQLException {
+    Statement statement = this.conn.createStatement();
+    statement.execute("DELETE FROM data_store");
+    statement.execute("DELETE FROM log;");
   }
 
   /**
@@ -157,10 +164,26 @@ public class Database {
       throws SQLException, InvalidDimensionException, InvalidInitValuesException {
     List<Log> followingLogs = new ArrayList<>();
 
-    String query = "SELECT * FROM log";
+    // query to get all following logs given a log
+    String query =
+        "WITH given(v) AS (VALUES (?))"
+            + " SELECT * FROM log, given"
+            + " WHERE NOT EXISTS ("
+            + " SELECT 1 FROM json_each(given.v) g"
+            + " JOIN json_each(log.vector_clock) t ON g.key = t.key"
+            // no smaller element in vector
+            + " WHERE CAST(t.value AS INT) < CAST(g.value AS INT)"
+            + " ) AND EXISTS ("
+            + " SELECT 1 FROM json_each(given.v) g"
+            + " JOIN json_each(log.vector_clock) t ON g.key = t.key"
+            // at least one greater element in vector
+            + " WHERE CAST(t.value AS INT) > CAST(g.value AS INT)"
+            + " );";
+
     try (PreparedStatement pstatement = this.conn.prepareStatement(query)) {
-      //pstatement.setString(1, Integer.toString(rowid));
-      try (ResultSet res = pstatement.executeQuery(query)) {
+      pstatement.setString(1, Arrays.toString(log.getVectorClock().getVector()));
+
+      try (ResultSet res = pstatement.executeQuery()) {
         if (!res.isBeforeFirst()) return null;
         else {
           // cycle all results and add the logs to the ArrayList

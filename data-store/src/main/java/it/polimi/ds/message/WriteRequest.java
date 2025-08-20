@@ -61,7 +61,7 @@ public class WriteRequest extends ClientMessage {
     // send the success response back to the client
     clientHandler.sendMessageClient(
         new ServerToClientResponseMessage(
-            "\nSuccessfully inserted pair (" + this.key + ", " + this.value + ")\n"));
+            "\n" + Integer.toString(clientHandler.getServer().getServerId()) + ")Successfully inserted pair (" + this.key + ", " + this.value + ")\n"));
     // send the AppendLogMessage in multicast to the other servers
     clientHandler.getServer().sendMulticastMessage(new AppendLogMessage(log));
   }

@@ -45,7 +45,8 @@ public class AppendLogMessage extends ServerToServerMessage {
       TimeVector vectorClock = server.getTimeVector();
 
       System.out.println(
-          "Updates received:"
+          Integer.toString(server.getServerId())
+              + ")Updates received:"
               + log.getServerId()
               + ","
               + "("

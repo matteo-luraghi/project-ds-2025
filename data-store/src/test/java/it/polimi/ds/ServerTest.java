@@ -21,8 +21,8 @@ public class ServerTest {
   Server server2;
 
   void init() throws IOException, InvalidDimensionException {
-    server1 = new Server(0, 1111, 2);
-    server2 = new Server(1, 1112, 2);
+    server1 = new Server(0, 1111, 2, true);
+    server2 = new Server(1, 1112, 2, true);
   }
 
   public void cleanup() {

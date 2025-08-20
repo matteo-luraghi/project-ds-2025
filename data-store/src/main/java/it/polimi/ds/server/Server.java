@@ -74,13 +74,13 @@ public class Server {
    * @throws IOException
    * @throws InvalidDimensionException
    */
-  public Server(int id, int serverPort, int serversNumber)
+  public Server(int id, int serverPort, int serversNumber, boolean test)
       throws IOException, InvalidDimensionException {
     this.id = id;
     this.serverPort = serverPort;
 
     // select the correct network interface
-    this.setupNetworkInterface();
+    this.setupNetworkInterface(test);
 
     this.serverIP = InetAddress.getLocalHost().getHostAddress();
 
@@ -196,7 +196,7 @@ public class Server {
       try {
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         this.multicastSocket.receive(packet);
-        System.out.println("multicast message received");
+        // System.out.println("multicast message received");
 
         ByteArrayInputStream bis =
             new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
@@ -272,7 +272,8 @@ public class Server {
   /** Send a LogRequestMessage in multicast to get missing logs */
   private void sendLogsRequestMessage() {
     try {
-      this.sendMulticastMessage(new LogsRequestMessage(this.getDb().getLastLog()));
+      this.sendMulticastMessage(
+          new LogsRequestMessage(this.getServerId(), this.getDb().getLastLog()));
     } catch (SQLException | InvalidDimensionException | InvalidInitValuesException e) {
       System.out.println(e);
     }
@@ -292,7 +293,13 @@ public class Server {
       this.timeVector.notify();
     }
     System.out.println(
-        "Write executed " + "(" + log.getWriteKey() + "," + log.getWriteValue() + ")");
+        Integer.toString(this.getServerId())
+            + ")Write executed "
+            + "("
+            + log.getWriteKey()
+            + ","
+            + log.getWriteValue()
+            + ")");
   }
 
   /**
@@ -312,7 +319,7 @@ public class Server {
       DatagramPacket packet =
           new DatagramPacket(data, data.length, this.multicastGroup, this.multicastPort);
       this.multicastSocket.send(packet);
-      System.out.println("multicast msg send");
+      // System.out.println("multicast msg send");
 
     } catch (IOException e) {
       System.err.println("Error sending message: " + e);
@@ -372,7 +379,7 @@ public class Server {
   }
 
   /** Selects the only valid network interface or lets the user choose it */
-  private void setupNetworkInterface() throws SocketException {
+  private void setupNetworkInterface(boolean test) throws SocketException {
     // set prefernce on IPv4
     System.setProperty("java.net.preferIPv4Stack", "true");
 
@@ -380,7 +387,7 @@ public class Server {
     List<NetworkInterface> validNets = getValidInterfaces();
 
     // if 1 valid network interface choose that one
-    if (validNets.size() == 1) {
+    if (validNets.size() == 1 || test) {
       this.networkInterface = validNets.getFirst();
     } else {
       // show network interfaces and ip addresses
@@ -413,6 +420,13 @@ public class Server {
         }
       }
     }
+  }
+
+  /** Reset database and time vector */
+  public void reset() throws SQLException, InvalidDimensionException {
+    this.getDb().resetDatabase();
+    int len = this.timeVector.getVector().length;
+    this.timeVector = new TimeVector(len);
   }
 
   /** Stop all the threads, close sockets and db connection */
