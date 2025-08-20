@@ -11,20 +11,19 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
  * Database
  *
- * <p>
- * handles sqlite database initialization, writes and reads
+ * <p>handles sqlite database initialization, writes and reads
  */
 public class Database {
   private final Connection conn;
 
   /**
-   * Connects (or creates) to a sqlite database and creates the data_store table
-   * and the log table
+   * Connects (or creates) to a sqlite database and creates the data_store table and the log table
    * if not already present
    *
    * @params serverId server identifier used to name the .db file
@@ -72,8 +71,7 @@ public class Database {
       pstatement.setString(1, key);
 
       try (ResultSet res = pstatement.executeQuery()) {
-        if (!res.isBeforeFirst())
-          return null;
+        if (!res.isBeforeFirst()) return null;
         else {
           res.next();
           String value = res.getString("value");
@@ -96,18 +94,9 @@ public class Database {
 
     TimeVector vectorClock = log.getVectorClock();
 
-    // save the vector clock as a string where values are separated by ";"
-    String vectorClockString = "";
-    for (int i = 0; i < vectorClock.getDimension(); i++) {
-      if (i != vectorClock.getDimension() - 1) {
-        vectorClockString += vectorClock.getVector()[i] + ";";
-      } else {
-        vectorClockString += vectorClock.getVector()[i];
-      }
-    }
-
+    // save the vector clock as a string like [0, 1, 2, 3]
     try (PreparedStatement pstatement = this.conn.prepareStatement(query)) {
-      pstatement.setString(1, vectorClockString);
+      pstatement.setString(1, Arrays.toString(vectorClock.getVector()));
       pstatement.setString(2, Integer.toString(log.getServerId()));
       pstatement.setString(3, log.getWriteKey());
       pstatement.setString(4, log.getWriteValue());
@@ -122,14 +111,13 @@ public class Database {
    */
   public Log getLastLog()
       throws SQLException,
-      NumberFormatException,
-      InvalidDimensionException,
-      InvalidInitValuesException {
+          NumberFormatException,
+          InvalidDimensionException,
+          InvalidInitValuesException {
     String query = "SELECT * FROM log ORDER BY rowid DESC LIMIT 1";
     Statement statement = conn.createStatement();
     try (ResultSet res = statement.executeQuery(query)) {
-      if (!res.isBeforeFirst())
-        return null;
+      if (!res.isBeforeFirst()) return null;
       else {
         res.next();
         TimeVector vectorClock = this.parseTimeVector(res.getString("vector_clock"));
@@ -142,8 +130,7 @@ public class Database {
   }
 
   /**
-   * Writes the log and the (key, value) pair in a single transaction, rollbacks
-   * if either one fails
+   * Writes the log and the (key, value) pair in a single transaction, rollbacks if either one fails
    *
    * @param log the Log of the write to be performed
    */
@@ -172,10 +159,9 @@ public class Database {
 
     String query = "SELECT * FROM log";
     try (PreparedStatement pstatement = this.conn.prepareStatement(query)) {
-      pstatement.setString(1, Integer.toString(rowid));
+      //pstatement.setString(1, Integer.toString(rowid));
       try (ResultSet res = pstatement.executeQuery(query)) {
-        if (!res.isBeforeFirst())
-          return null;
+        if (!res.isBeforeFirst()) return null;
         else {
           // cycle all results and add the logs to the ArrayList
           while (res.next()) {
@@ -199,7 +185,7 @@ public class Database {
    */
   private TimeVector parseTimeVector(String timeVectorStr)
       throws NumberFormatException, InvalidDimensionException, InvalidInitValuesException {
-    String[] vectorArrayStr = timeVectorStr.split(";");
+    String[] vectorArrayStr = timeVectorStr.substring(1, timeVectorStr.length() - 1).split(", ");
     int dimension = vectorArrayStr.length;
     int[] vectorArray = new int[dimension];
     for (int i = 0; i < dimension; i++) {
