@@ -33,22 +33,8 @@ public class ServerCrashTest {
     for (Server server : servers) {
       server.stop();
     }
-  }
-
-  /**
-   * Create a thread to run a Server
-   *
-   * @params server the server to be run
-   */
-  private Thread createServerThread(Server server) {
-    return new Thread(
-        () -> {
-          try {
-            server.start();
-          } catch (IOException e) {
-            System.out.println("Error starting server");
-          }
-        });
+    servers = new ArrayList<>();
+    clients = new ArrayList<>();
   }
 
   @Test
@@ -56,15 +42,8 @@ public class ServerCrashTest {
       throws IOException, InvalidDimensionException, InterruptedException, SQLException {
     init();
 
-    List<Thread> serverThreads = new ArrayList<>();
-
     for (Server server : servers) {
-      // create a different thread that runs the server
-      Thread serverThread = createServerThread(server);
-      // save the server thread in the list
-      serverThreads.add(serverThread);
-      // run the server
-      serverThread.start();
+      server.start();
     }
 
     // setup the clients
@@ -99,16 +78,14 @@ public class ServerCrashTest {
     Thread.sleep(3000);
     // simulate server crash
     servers.get(0).stop();
-    serverThreads.get(0).interrupt();
+    servers.remove(0);
     System.out.println("Server crashed");
-    // wait for the thread to terminate
-    serverThreads.get(0).join();
     // keep the server down for some time
     Thread.sleep(3000);
     // create a new thread for the crashed server
-    serverThreads.add(createServerThread(new Server(0, 1111, serversNum, true)));
+    servers.add(new Server(0, 1111, serversNum, true));
     // restart the crashed server
-    serverThreads.getLast().start();
+    servers.getLast().start();
     System.out.println("Server active again");
     // wait for some messages to update logs
     Thread.sleep(3000);
@@ -128,6 +105,56 @@ public class ServerCrashTest {
             Arrays.toString(servers.get(i).getTimeVector().getVector())
                 .equals(Arrays.toString(servers.get(j).getTimeVector().getVector())));
       }
+    }
+
+    cleanup();
+  }
+
+  @Test
+  public void writeAfterCrash()
+      throws IOException, InvalidDimensionException, InterruptedException, SQLException {
+    init();
+
+    for (Server server : servers) {
+      server.start();
+    }
+
+    // setup the client
+    clients.add(new Client(InetAddress.getLocalHost().getHostAddress(), 1111));
+
+    clients.get(0).sendMessageServer(new WriteRequest("x", "1"));
+    Thread.sleep(1000);
+    // simulate server crash
+    servers.get(1).stop();
+    servers.remove(1);
+    Thread.sleep(1000);
+    clients.get(0).sendMessageServer(new WriteRequest("y", "1"));
+    Thread.sleep(1000);
+    // recreate server
+    servers.add(new Server(1, 1112, serversNum, true));
+    servers.getLast().start();
+    Thread.sleep(500);
+    // create new client
+    clients.add(new Client(InetAddress.getLocalHost().getHostAddress(), 1112));
+    // write from the crashed server
+    clients.get(1).sendMessageServer(new WriteRequest("y", "2"));
+    Thread.sleep(1000);
+    // write from updated server to trigger log request
+    clients.get(0).sendMessageServer(new WriteRequest("z", "1"));
+    Thread.sleep(1000);
+    clients.get(0).sendMessageServer(new WriteRequest("z", "2"));
+    Thread.sleep(1000);
+
+    for (Client client : clients) {
+      client.disconnect();
+    }
+    for (Server server : servers) {
+      server.stop();
+    }
+
+    for (Server server : servers) {
+      System.out.println(server.getServerId());
+      System.out.println(Arrays.toString(server.getTimeVector().getVector()));
     }
 
     cleanup();

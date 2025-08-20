@@ -168,15 +168,10 @@ public class Database {
     String query =
         "WITH given(v) AS (VALUES (?))"
             + " SELECT * FROM log, given"
-            + " WHERE NOT EXISTS ("
+            // at least one element grater in vector
+            + " WHERE EXISTS ("
             + " SELECT 1 FROM json_each(given.v) g"
             + " JOIN json_each(log.vector_clock) t ON g.key = t.key"
-            // no smaller element in vector
-            + " WHERE CAST(t.value AS INT) < CAST(g.value AS INT)"
-            + " ) AND EXISTS ("
-            + " SELECT 1 FROM json_each(given.v) g"
-            + " JOIN json_each(log.vector_clock) t ON g.key = t.key"
-            // at least one greater element in vector
             + " WHERE CAST(t.value AS INT) > CAST(g.value AS INT)"
             + " );";
 

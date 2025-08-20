@@ -20,9 +20,11 @@ public class ServerTest {
   Server server1;
   Server server2;
 
-  void init() throws IOException, InvalidDimensionException {
+  void init() throws IOException, InvalidDimensionException, SQLException {
     server1 = new Server(0, 1111, 2, true);
     server2 = new Server(1, 1112, 2, true);
+    server1.reset();
+    server2.reset();
   }
 
   public void cleanup() {
@@ -83,6 +85,8 @@ public class ServerTest {
     int[] vector2 = log2.getVectorClock().getVector();
     assertTrue(vector1[0] == vector2[0] && vector1[0] == previousVector[0] + 1);
     assertTrue(vector1[1] == vector2[1] && vector1[1] == previousVector[1]);
+
+    client.disconnect();
 
     cleanup();
   }
