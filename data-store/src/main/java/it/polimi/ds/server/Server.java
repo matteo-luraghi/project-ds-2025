@@ -241,6 +241,7 @@ public class Server {
             if (logVC.happensBefore(this.timeVector, log.getServerId())) {
               // causal consistency satisfied, execute the write
               executeWrite(log);
+              timeVector.merge(logVC, log.getServerId());
               updatesBuffer.remove(log);
             } else {
               // write cannot be executed
@@ -289,15 +290,8 @@ public class Server {
    * @param log the log of the write to be performed
    */
   public void executeWrite(Log log) throws SQLException, ImpossibleComparisonException {
-    TimeVector logVC = log.getVectorClock();
-    if(logVC.lessOrEqual(timeVector))
-      //ignore duplicated writes
-      return;
     this.db.executeTransactionalWrite(log);
-    synchronized (timeVector) {
-      this.timeVector.merge(logVC, this.id);
-      this.timeVector.notify();
-    }
+    
     System.out.println(
         Integer.toString(this.getServerId())
             + ")Write executed "

@@ -46,9 +46,10 @@ public class AppendLogMessage extends ServerToServerMessage {
 
       System.out.println(
           Integer.toString(server.getServerId())
-              + ")Updates received:"
+              + ") Update received:"
+              +"from server: "
               + log.getServerId()
-              + ","
+              + ", (key,value): "
               + "("
               + log.getWriteKey()
               + ","
@@ -56,8 +57,16 @@ public class AppendLogMessage extends ServerToServerMessage {
               + ")");
 
       synchronized (vectorClock) {
+        if(msgVC.lessOrEqual(vectorClock))
+          //ignore duplicated writes
+          return;
+      
         if (msgVC.happensBefore(vectorClock, senderId)) {
           server.executeWrite(log);
+          
+          vectorClock.merge(msgVC, server.getServerId());
+          vectorClock.notify();
+  
         } else {
           server.addToUpdatesBuffer(log);
         }

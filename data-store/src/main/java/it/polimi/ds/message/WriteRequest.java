@@ -42,7 +42,7 @@ public class WriteRequest extends ClientMessage {
       vectorClock.increment(serverId);
 
       // initialize the log after the clock increment
-      log = new Log(clientHandler.getServer().getTimeVector(), serverId, this.key, this.value);
+      log = new Log(vectorClock, serverId, this.key, this.value);
 
       // build the log based on the server informations
       try {
