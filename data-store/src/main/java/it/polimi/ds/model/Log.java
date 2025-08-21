@@ -76,9 +76,9 @@ public class Log implements Serializable {
       TimeVector vc2= log2.vectorClock;
 
       try {
-        if(vc1.happensBefore(vc2)){
+        if(vc1.lessOrEqual(vc2)){
           return -1;
-        }else if(vc2.happensBefore(vc1)){
+        }else if(vc2.lessOrEqual(vc1)){
           return 1;
         }else{ //ties breaker (causal order is only partial but compare method needs a total order)
           return Integer.compare(log1.serverId,log2.serverId);

@@ -26,7 +26,7 @@ public class ServerMain {
         int serverPort = Integer.parseInt(portStr);
         int serverId = Integer.parseInt(idStr);
         int serversNumber = Integer.parseInt(serversNumberStr);
-        Server server = new Server(serverId, serverPort, serversNumber);
+        Server server = new Server(serverId, serverPort, serversNumber, false);
         server.start();
         started = true;
       } catch (NumberFormatException e) {

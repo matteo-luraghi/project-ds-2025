@@ -101,7 +101,7 @@ public class TimeVector implements Serializable {
      * returns true iif THIS is smaller than or equal to OTHER in all timestamps, 
      * @throws ImpossibleComparisonException
      */
-    public boolean happensBefore(TimeVector other) throws ImpossibleComparisonException{
+    public boolean lessOrEqual(TimeVector other) throws ImpossibleComparisonException{
         if(other.dimension != this.dimension)
             throw new ImpossibleComparisonException();
 

@@ -10,6 +10,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Database
@@ -29,13 +32,20 @@ public class Database {
   public Database(String serverName) throws SQLException {
     String dbPath = "storage/" + serverName + ".db";
     this.conn = DriverManager.getConnection("jdbc:sqlite:" + dbPath);
-    Statement statement = conn.createStatement();
+    Statement statement = this.conn.createStatement();
     statement.execute(
         "CREATE TABLE IF NOT EXISTS data_store (key TEXT " + "PRIMARY KEY, value TEXT)");
     statement.execute(
         "CREATE TABLE IF NOT EXISTS log (vector_clock TEXT, server_id INT, "
             + "write_key TEXT, write_value TEXT,  "
             + "PRIMARY KEY (vector_clock, server_id))");
+  }
+
+  /** Removes all the rows from both the tables in the db */
+  public void resetDatabase() throws SQLException {
+    Statement statement = this.conn.createStatement();
+    statement.execute("DELETE FROM data_store");
+    statement.execute("DELETE FROM log;");
   }
 
   /**
@@ -91,18 +101,9 @@ public class Database {
 
     TimeVector vectorClock = log.getVectorClock();
 
-    // save the vector clock as a string where values are separated by ";"
-    String vectorClockString = "";
-    for (int i = 0; i < vectorClock.getDimension(); i++) {
-      if (i != vectorClock.getDimension() - 1) {
-        vectorClockString += vectorClock.getVector()[i] + ";";
-      } else {
-        vectorClockString += vectorClock.getVector()[i];
-      }
-    }
-
+    // save the vector clock as a string like [0, 1, 2, 3]
     try (PreparedStatement pstatement = this.conn.prepareStatement(query)) {
-      pstatement.setString(1, vectorClockString);
+      pstatement.setString(1, Arrays.toString(vectorClock.getVector()));
       pstatement.setString(2, Integer.toString(log.getServerId()));
       pstatement.setString(3, log.getWriteKey());
       pstatement.setString(4, log.getWriteValue());
@@ -155,13 +156,54 @@ public class Database {
   }
 
   /**
+   * Returns all the logs following a given log
+   *
+   * @param log the given log
+   */
+  public List<Log> getFollowingLogs(Log log)
+      throws SQLException, InvalidDimensionException, InvalidInitValuesException {
+    List<Log> followingLogs = new ArrayList<>();
+
+    // query to get all following logs given a log
+    String query =
+        "WITH given(v) AS (VALUES (?))"
+            + " SELECT * FROM log, given"
+            // at least one element grater in vector
+            + " WHERE EXISTS ("
+            + " SELECT 1 FROM json_each(given.v) g"
+            + " JOIN json_each(log.vector_clock) t ON g.key = t.key"
+            + " WHERE CAST(t.value AS INT) > CAST(g.value AS INT)"
+            + " );";
+
+    try (PreparedStatement pstatement = this.conn.prepareStatement(query)) {
+      pstatement.setString(1, Arrays.toString(log.getVectorClock().getVector()));
+
+      try (ResultSet res = pstatement.executeQuery()) {
+        if (!res.isBeforeFirst()) return null;
+        else {
+          // cycle all results and add the logs to the ArrayList
+          while (res.next()) {
+            TimeVector vectorClock = this.parseTimeVector(res.getString("vector_clock"));
+            int serverId = Integer.parseInt(res.getString("server_id"));
+            String writeKey = res.getString("write_key");
+            String writeValue = res.getString("write_value");
+            followingLogs.add(new Log(vectorClock, serverId, writeKey, writeValue));
+          }
+        }
+      }
+    }
+
+    return followingLogs;
+  }
+
+  /**
    * Parses the time vector from the db
    *
    * @param timeVectorStr the string to parse as a TimeVector
    */
   private TimeVector parseTimeVector(String timeVectorStr)
       throws NumberFormatException, InvalidDimensionException, InvalidInitValuesException {
-    String[] vectorArrayStr = timeVectorStr.split(";");
+    String[] vectorArrayStr = timeVectorStr.substring(1, timeVectorStr.length() - 1).split(", ");
     int dimension = vectorArrayStr.length;
     int[] vectorArray = new int[dimension];
     for (int i = 0; i < dimension; i++) {

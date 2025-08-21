@@ -1,6 +1,7 @@
 package it.polimi.ds.server;
 
 import it.polimi.ds.database.Database;
+import it.polimi.ds.message.LogsRequestMessage;
 import it.polimi.ds.message.ServerToServerMessage;
 import it.polimi.ds.model.Log;
 import it.polimi.ds.model.TimeVector;
@@ -15,7 +16,6 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.DatagramPacket;
 import java.net.Inet4Address;
-import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
@@ -26,6 +26,7 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
@@ -38,9 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * Server
  *
- * <p>
- * handles clients' requests and connects to other servers to keep state
- * coherent
+ * <p>handles clients' requests and connects to other servers to keep state coherent
  */
 public class Server {
   private int id;
@@ -58,29 +57,31 @@ public class Server {
   private final Thread clientsThread;
   private final Thread multicastReceiveThread;
   private final Thread updateBufferThread;
+  private AtomicBoolean isBufferReady = new AtomicBoolean(false);
+  private int UpdateMissLoops = 0;
+  private final int maxUpdateMissLoops = 1;
   private final ExecutorService executor;
   private final List<ClientHandler> clients = new ArrayList<>();
   private TimeVector timeVector = null;
   private TreeSet<Log> updatesBuffer = new TreeSet<Log>(new Log.LogComparator());
 
   /**
-   * Constructor, initializes the database connection, the client socket and the
-   * multicast socket
+   * Constructor, initializes the database connection, the client socket and the multicast socket
    * for the communication with the other servers
    *
-   * @param id            the server id
-   * @param serverPort    the port where the server is running
+   * @param id the server id
+   * @param serverPort the port where the server is running
    * @param serversNumber the number of the servers in the network
    * @throws IOException
    * @throws InvalidDimensionException
    */
-  public Server(int id, int serverPort, int serversNumber)
+  public Server(int id, int serverPort, int serversNumber, boolean test)
       throws IOException, InvalidDimensionException {
     this.id = id;
     this.serverPort = serverPort;
 
     // select the correct network interface
-    this.setupNetworkInterface();
+    this.setupNetworkInterface(test);
 
     this.serverIP = InetAddress.getLocalHost().getHostAddress();
 
@@ -94,7 +95,6 @@ public class Server {
 
     // restore the last time vector stored in the db
     try {
-      // TODO: use this log to ask other servers for next logs
       Log log = this.db.getLastLog();
       if (log != null) {
         this.timeVector = log.getVectorClock();
@@ -156,8 +156,7 @@ public class Server {
   }
 
   /**
-   * Start the server by opening the socket, accepting sockets connections and
-   * joining the multicast
+   * Start the server by opening the socket, accepting sockets connections and joining the multicast
    * group
    *
    * @throws IOException
@@ -198,9 +197,10 @@ public class Server {
       try {
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         this.multicastSocket.receive(packet);
-        System.out.println("multicast message received");
+        // System.out.println("multicast message received");
 
-        ByteArrayInputStream bis = new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
+        ByteArrayInputStream bis =
+            new ByteArrayInputStream(packet.getData(), 0, packet.getLength());
         ObjectInputStream ois = new ObjectInputStream(bis);
         Object msg = ois.readObject();
 
@@ -216,54 +216,93 @@ public class Server {
   }
 
   /**
-   * Waits until updatesBuffer is not empty, then for each log inside the buffer
-   * if it happens
-   * before the current vector clock executes the writes on the database and
-   * removes the log from
-   * the buffer
+   * Waits until updatesBuffer is not empty or there are log that cannot be processed, then for each
+   * log inside the buffer if it happens before the current vector clock executes the writes on the
+   * database and removes the log from the buffer. If at least one log is not processed for
+   * "maxUpdateMissLoops" consecutive iteration then a LogsRequestMessage is sent
    */
   public void manageUpdateBuffer() {
     while (this.running.get()) {
       synchronized (timeVector) {
-        while (updatesBuffer.isEmpty()) {
+        while (!this.isBufferReady.get()) {
+          // waiting for new logs
           try {
             timeVector.wait();
           } catch (InterruptedException ignore) {
           }
         }
+        // clone the buffer for safety
         TreeSet<Log> updatesBufferClone = new TreeSet<>(updatesBuffer);
+
+        boolean haveLostUpdates = false;
         for (Log log : updatesBufferClone) {
           TimeVector logVC = log.getVectorClock();
           try {
             if (logVC.happensBefore(this.timeVector, log.getServerId())) {
+              // causal consistency satisfied, execute the write
               executeWrite(log);
+              timeVector.merge(logVC, log.getServerId());
               updatesBuffer.remove(log);
+            } else {
+              // write cannot be executed
+              haveLostUpdates = true;
             }
           } catch (ImpossibleComparisonException | SQLException e) {
             System.out.println("While managing updates buffer:");
             System.out.println(e.getMessage());
           }
         }
+        // set the buffer to not ready
+        this.isBufferReady.set(false);
+
+        // if during this loop an update is not executed
+        if (haveLostUpdates) {
+          // increment counter
+          UpdateMissLoops++;
+          if (UpdateMissLoops > maxUpdateMissLoops) {
+            // too many consecutive loops with update miss, send a log request
+            sendLogsRequestMessage();
+          }
+        } else {
+          // no update lost, reset the counter
+          UpdateMissLoops = 0;
+        }
       }
     }
   }
 
+  /** Send a LogRequestMessage in multicast to get missing logs */
+  private void sendLogsRequestMessage() {
+    try {
+      this.sendMulticastMessage(
+          new LogsRequestMessage(this.getServerId(), this.getDb().getLastLog()));
+    } catch (SQLException | InvalidDimensionException | InvalidInitValuesException e) {
+      System.out.println(e);
+    }
+  }
+
   /**
-   * Writes the log in the db Perfrorms the write in the db Merges the vector
-   * clock of the log with
+   * if the log is not already in the db then
+   * Writes the log in the db Perfrorms the write in the db Merges the vector clock of the log with
    * the server's one Awakes the buffer updates thread
+   * otherwhise nothing happens
    *
    * @param log the log of the write to be performed
    */
   public void executeWrite(Log log) throws SQLException, ImpossibleComparisonException {
-    TimeVector logVC = log.getVectorClock();
     this.db.executeTransactionalWrite(log);
-    synchronized (timeVector) {
-      this.timeVector.merge(logVC, this.id);
-      this.timeVector.notify();
-    }
+    
     System.out.println(
-        "Write executed " + "(" + log.getWriteKey() + "," + log.getWriteValue() + ")");
+        Integer.toString(this.getServerId())
+            + ")Write executed "
+            + "("
+            + log.getWriteKey()
+            + ","
+            + log.getWriteValue()
+            + ") "
+            + "vc: "
+            + Arrays.toString(log.getVectorClock().getVector())
+            );
   }
 
   /**
@@ -280,9 +319,10 @@ public class Server {
       oos.flush();
 
       byte[] data = bos.toByteArray();
-      DatagramPacket packet = new DatagramPacket(data, data.length, this.multicastGroup, this.multicastPort);
+      DatagramPacket packet =
+          new DatagramPacket(data, data.length, this.multicastGroup, this.multicastPort);
       this.multicastSocket.send(packet);
-      System.out.println("multicast msg send");
+      // System.out.println("multicast msg send");
 
     } catch (IOException e) {
       System.err.println("Error sending message: " + e);
@@ -312,42 +352,45 @@ public class Server {
   public void addToUpdatesBuffer(Log log) {
     synchronized (timeVector) {
       updatesBuffer.add(log);
+      isBufferReady.set(true);
       timeVector.notify();
     }
   }
+
+  /** Get all the valid interface of the machine */
   private List<NetworkInterface> getValidInterfaces() throws SocketException {
     List<NetworkInterface> result = new ArrayList<>();
 
     for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-        if (!nif.isUp() || !nif.supportsMulticast() || nif.isLoopback()) continue;
+      if (!nif.isUp() || !nif.supportsMulticast() || nif.isLoopback()) continue;
 
-        boolean hasIPv4 = false;
-        for (InetAddress addr : Collections.list(nif.getInetAddresses())) {
-            if (addr instanceof Inet4Address && !addr.isLoopbackAddress() && !addr.isLinkLocalAddress()) {
-                hasIPv4 = true;
-                break;
-            }
+      boolean hasIPv4 = false;
+      for (InetAddress addr : Collections.list(nif.getInetAddresses())) {
+        if (addr instanceof Inet4Address
+            && !addr.isLoopbackAddress()
+            && !addr.isLinkLocalAddress()) {
+          hasIPv4 = true;
+          break;
         }
+      }
 
-        if (hasIPv4) {
-            result.add(nif);
-        }
+      if (hasIPv4) {
+        result.add(nif);
+      }
     }
     return result;
-}
+  }
 
-  /**
-   * Selects the only valid network interface or lets the user choose it
-   */
-  private void setupNetworkInterface() throws SocketException {
+  /** Selects the only valid network interface or lets the user choose it */
+  private void setupNetworkInterface(boolean test) throws SocketException {
     // set prefernce on IPv4
     System.setProperty("java.net.preferIPv4Stack", "true");
-   
+
     // filter only valid network interfaces
-    List<NetworkInterface> validNets =getValidInterfaces();
-    
+    List<NetworkInterface> validNets = getValidInterfaces();
+
     // if 1 valid network interface choose that one
-    if (validNets.size() == 1) {
+    if (validNets.size() == 1 || test) {
       this.networkInterface = validNets.getFirst();
     } else {
       // show network interfaces and ip addresses
@@ -380,6 +423,13 @@ public class Server {
         }
       }
     }
+  }
+
+  /** Reset database and time vector */
+  public void reset() throws SQLException, InvalidDimensionException {
+    this.getDb().resetDatabase();
+    int len = this.timeVector.getVector().length;
+    this.timeVector = new TimeVector(len);
   }
 
   /** Stop all the threads, close sockets and db connection */
