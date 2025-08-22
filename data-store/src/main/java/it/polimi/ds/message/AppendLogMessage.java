@@ -3,8 +3,11 @@ package it.polimi.ds.message;
 import it.polimi.ds.model.Log;
 import it.polimi.ds.model.TimeVector;
 import it.polimi.ds.model.exception.ImpossibleComparisonException;
+import it.polimi.ds.model.exception.InvalidDimensionException;
+import it.polimi.ds.model.exception.InvalidInitValuesException;
 import it.polimi.ds.server.Server;
 import java.sql.SQLException;
+import java.util.Arrays;
 
 /**
  * AppendLogMessage
@@ -46,15 +49,16 @@ public class AppendLogMessage extends ServerToServerMessage {
 
       System.out.println(
           Integer.toString(server.getServerId())
-              + ") Update received:"
-              +"from server: "
+              + ") Update received from server: "
               + log.getServerId()
               + ", (key,value): "
               + "("
               + log.getWriteKey()
               + ","
               + log.getWriteValue()
-              + ")");
+              + ") "
+              +"vc: "
+              +Arrays.toString(msgVC.getVector()));
 
       synchronized (vectorClock) {
         if(msgVC.lessOrEqual(vectorClock))
@@ -65,6 +69,7 @@ public class AppendLogMessage extends ServerToServerMessage {
           server.executeWrite(log);
           
           vectorClock.merge(msgVC, server.getServerId());
+          server.setBufferReady(true);
           vectorClock.notify();
   
         } else {
@@ -76,6 +81,7 @@ public class AppendLogMessage extends ServerToServerMessage {
       System.out.println(e.getMessage());
     } catch (SQLException e) {
       System.out.println("Error in database while executing AppendLog Message");
+      
     }
   }
 }

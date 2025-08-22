@@ -58,7 +58,7 @@ public class Server {
   private final Thread multicastReceiveThread;
   private final Thread updateBufferThread;
   private AtomicBoolean isBufferReady = new AtomicBoolean(false);
-  private int UpdateMissLoops = 0;
+  private int updateMissLoops = 0;
   private final int maxUpdateMissLoops = 1;
   private final ExecutorService executor;
   private final List<ClientHandler> clients = new ArrayList<>();
@@ -241,7 +241,7 @@ public class Server {
             if (logVC.happensBefore(this.timeVector, log.getServerId())) {
               // causal consistency satisfied, execute the write
               executeWrite(log);
-              timeVector.merge(logVC, log.getServerId());
+              timeVector.merge(logVC, this.id);
               updatesBuffer.remove(log);
             } else {
               // write cannot be executed
@@ -258,14 +258,14 @@ public class Server {
         // if during this loop an update is not executed
         if (haveLostUpdates) {
           // increment counter
-          UpdateMissLoops++;
-          if (UpdateMissLoops > maxUpdateMissLoops) {
+          updateMissLoops++;
+          if (updateMissLoops > maxUpdateMissLoops) {
             // too many consecutive loops with update miss, send a log request
             sendLogsRequestMessage();
           }
         } else {
           // no update lost, reset the counter
-          UpdateMissLoops = 0;
+          updateMissLoops = 0;
         }
       }
     }
@@ -274,8 +274,14 @@ public class Server {
   /** Send a LogRequestMessage in multicast to get missing logs */
   private void sendLogsRequestMessage() {
     try {
+      Log lastLog = this.getDb().getLastLog();
+      if (lastLog == null){
+        // fake log for getFollowingLogs
+        lastLog = new Log(timeVector, id, null, null);
+      }
+
       this.sendMulticastMessage(
-          new LogsRequestMessage(this.getServerId(), this.getDb().getLastLog()));
+          new LogsRequestMessage(this.getServerId(), lastLog));
     } catch (SQLException | InvalidDimensionException | InvalidInitValuesException e) {
       System.out.println(e);
     }
@@ -292,6 +298,7 @@ public class Server {
   public void executeWrite(Log log) throws SQLException, ImpossibleComparisonException {
     this.db.executeTransactionalWrite(log);
     
+
     System.out.println(
         Integer.toString(this.getServerId())
             + ")Write executed "
@@ -350,11 +357,11 @@ public class Server {
    * @param log the log to add
    */
   public void addToUpdatesBuffer(Log log) {
-    synchronized (timeVector) {
-      updatesBuffer.add(log);
-      isBufferReady.set(true);
-      timeVector.notify();
-    }
+      synchronized(updatesBuffer){
+        updatesBuffer.add(log);
+        isBufferReady.set(true);
+      }
+      synchronized (timeVector) { timeVector.notify();}
   }
 
   /** Get all the valid interface of the machine */
@@ -483,4 +490,12 @@ public class Server {
       System.err.println("Error closing the database: " + e.getMessage());
     }
   }
+  /**
+   * Set the the Atomic Boolean isBufferReady to the given boolean value
+   * @param bool boolean
+   */
+  public void setBufferReady(boolean bool) {
+     isBufferReady.set(bool);
+  }
+
 }
