@@ -36,14 +36,12 @@ public class ClientMain {
           } catch (IOException e) {
             System.err.println("Error connecting to the server, try again");
           }
-
-          // parse user commands
-          client.getUserCommands(scanner);
-          // user exited the application
-          scanner.close();
-          System.exit(0);
-
         } while (!started);
+        // parse user commands
+        client.getUserCommands(scanner);
+        // user exited the application
+        scanner.close();
+        System.exit(0);
 
       } catch (Exception e) {
         System.err.println(e.getMessage());
