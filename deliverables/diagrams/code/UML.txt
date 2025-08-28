@@ -1,0 +1,52 @@
+@startuml
+
+title Data Store - Component Diagram
+
+package "it.polimi.ds.client" {
+  [Client]
+  [ClientMain]
+}
+
+package "it.polimi.ds.database" {
+  [Database]
+}
+
+package "it.polimi.ds.message" {
+  [AppendLogMessage]
+  [ClientMessage]
+  [Disconnection]
+  [LogsRequestMessage]
+  [LogsResponseMessage]
+  [Ping]
+  [ReadRequest]
+  [ServerToClientMessage]
+  [ServerToClientResponseMessage]
+  [ServerToServerMessage]
+  [WriteRequest]
+}
+
+package "it.polimi.ds.model" {
+  [Log]
+  [TimeVector]
+}
+
+package "it.polimi.ds.server" {
+  [ClientHandler]
+  [Server]
+  [ServerMain]
+}
+
+' Relationships
+[ClientMain] --> [Client] : creates
+[ServerMain] --> [Server] : creates
+[ClientHandler] --> [Client] : communicates
+[Server] --> [Database] : stores/retrieves logs
+[Client] --> [message] : sends/receives
+[Server] --> [message] : sends/receives
+[message] --> [model] : contains data
+[Server] --> [ClientHandler] : uses
+[Server] --> [Log] : stores
+[Server] --> [TimeVector] : has
+[Log] --> [TimeVector] : contains
+
+@enduml
