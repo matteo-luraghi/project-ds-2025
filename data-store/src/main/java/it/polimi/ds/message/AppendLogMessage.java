@@ -3,8 +3,6 @@ package it.polimi.ds.message;
 import it.polimi.ds.model.Log;
 import it.polimi.ds.model.TimeVector;
 import it.polimi.ds.model.exception.ImpossibleComparisonException;
-import it.polimi.ds.model.exception.InvalidDimensionException;
-import it.polimi.ds.model.exception.InvalidInitValuesException;
 import it.polimi.ds.server.Server;
 import java.sql.SQLException;
 import java.util.Arrays;
@@ -12,7 +10,8 @@ import java.util.Arrays;
 /**
  * AppendLogMessage
  *
- * <p>used to notify all the other servers of a write operation using logs
+ * <p>
+ * used to notify all the other servers of a write operation using logs
  */
 public class AppendLogMessage extends ServerToServerMessage {
   private final Log log;
@@ -23,15 +22,16 @@ public class AppendLogMessage extends ServerToServerMessage {
    * @param log the log to save and execute
    */
   public AppendLogMessage(Log log) {
-    this.log =
-        new Log(
-            log.getVectorClock(), log.getServerId(),
-            log.getWriteKey(), log.getWriteValue());
+    this.log = new Log(
+        log.getVectorClock(), log.getServerId(),
+        log.getWriteKey(), log.getWriteValue());
   }
 
   /**
-   * Confronts the log's vector clock with the server's vector clock if the first happens before the
-   * second the write is performed on the database otherwhise the log is inserted in the buffer
+   * Confronts the log's vector clock with the server's vector clock if the first
+   * happens before the
+   * second the write is performed on the database otherwhise the log is inserted
+   * in the buffer
    */
   @Override
   public void execute(Server server) {
@@ -57,21 +57,21 @@ public class AppendLogMessage extends ServerToServerMessage {
               + ","
               + log.getWriteValue()
               + ") "
-              +"vc: "
-              +Arrays.toString(msgVC.getVector()));
+              + "vc: "
+              + Arrays.toString(msgVC.getVector()));
 
       synchronized (vectorClock) {
-        if(msgVC.lessOrEqual(vectorClock))
-          //ignore duplicated writes
+        if (msgVC.lessOrEqual(vectorClock))
+          // ignore duplicated writes
           return;
-      
+
         if (msgVC.happensBefore(vectorClock, senderId)) {
           server.executeWrite(log);
-          
+
           vectorClock.merge(msgVC, server.getServerId());
           server.setBufferReady(true);
           vectorClock.notify();
-  
+
         } else {
           server.addToUpdatesBuffer(log);
         }
@@ -81,7 +81,6 @@ public class AppendLogMessage extends ServerToServerMessage {
       System.out.println(e.getMessage());
     } catch (SQLException e) {
       System.out.println("Error in database while executing AppendLog Message");
-      
     }
   }
 }

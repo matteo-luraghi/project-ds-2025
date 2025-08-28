@@ -15,7 +15,7 @@ import java.util.List;
 public class LogsRequestMessage extends ServerToServerMessage {
   private final int serverId;
   private final Log lastLog;
-  
+
   /**
    * Constructor
    *

@@ -1,8 +1,6 @@
 package it.polimi.ds.model;
 
 import it.polimi.ds.model.exception.ImpossibleComparisonException;
-import it.polimi.ds.model.exception.InvalidDimensionException;
-import it.polimi.ds.model.exception.InvalidInitValuesException;
 import java.io.Serializable;
 import java.util.Comparator;
 
@@ -25,7 +23,7 @@ public class Log implements Serializable {
    * @params writeKey the key written in the db
    * @params writeValue the value written in the db
    */
-  public Log(TimeVector vectorClock, int serverId, String writeKey, String writeValue){
+  public Log(TimeVector vectorClock, int serverId, String writeKey, String writeValue) {
     this.vectorClock = TimeVector.copyTimeVector(vectorClock);
     this.serverId = serverId;
     this.writeKey = writeKey;
@@ -51,47 +49,41 @@ public class Log implements Serializable {
   public String getWriteValue() {
     return new String(this.writeValue);
   }
+
   @Override
-  public boolean equals(Object other){
-    if (this == other) 
-      return true; // same reference
-    if (other == null || getClass() != other.getClass()) 
-      return false;
+  public boolean equals(Object other) {
+    if (this == other) return true; // same reference
+    if (other == null || getClass() != other.getClass()) return false;
     Log obj = (Log) other;
-    return this.serverId== obj.serverId && this.vectorClock.equals(obj.vectorClock);
+    return this.serverId == obj.serverId && this.vectorClock.equals(obj.vectorClock);
   }
-  /**
-   * Class that impose a total order in a collection of Log
-   */
+
+  /** Class that impose a total order in a collection of Log */
   public static class LogComparator implements Comparator<Log> {
-    /** 
-     * @return a negative integer, or a positive integer as 
-     * the first argument happens before, or happens after than the second.
-     * Server id is used as a tie breaker
-    */
-    public int compare(Log log1,Log log2){
-      if(log1.equals(log2))
-        return 0;
-      TimeVector vc1= log1.vectorClock;
-      TimeVector vc2= log2.vectorClock;
+    /**
+     * @return a negative integer, or a positive integer as the first argument happens before, or
+     *     happens after than the second. Server id is used as a tie breaker
+     */
+    public int compare(Log log1, Log log2) {
+      if (log1.equals(log2)) return 0;
+      TimeVector vc1 = log1.vectorClock;
+      TimeVector vc2 = log2.vectorClock;
 
       try {
-        if(vc1.lessOrEqual(vc2)){
+        if (vc1.lessOrEqual(vc2)) {
           return -1;
-        }else if(vc2.lessOrEqual(vc1)){
+        } else if (vc2.lessOrEqual(vc1)) {
           return 1;
-        }else{ //ties breaker (causal order is only partial but compare method needs a total order)
-          return Integer.compare(log1.serverId,log2.serverId);
+        } else { // ties breaker (causal order is only partial but compare
+          // method needs a total order)
+          return Integer.compare(log1.serverId, log2.serverId);
         }
       } catch (ImpossibleComparisonException e) {
         System.out.println("While updates' buffer sorting:");
         System.out.println(e.getMessage());
         System.exit(1);
       }
-      return 0; //useless but Java is petty
-     
+      return 0; // useless but Java is petty
     }
   }
-
-  
 }

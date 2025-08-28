@@ -275,29 +275,26 @@ public class Server {
   private void sendLogsRequestMessage() {
     try {
       Log lastLog = this.getDb().getLastLog();
-      if (lastLog == null){
+      if (lastLog == null) {
         // fake log for getFollowingLogs
         lastLog = new Log(timeVector, id, null, null);
       }
 
-      this.sendMulticastMessage(
-          new LogsRequestMessage(this.getServerId(), lastLog));
+      this.sendMulticastMessage(new LogsRequestMessage(this.getServerId(), lastLog));
     } catch (SQLException | InvalidDimensionException | InvalidInitValuesException e) {
       System.out.println(e);
     }
   }
 
   /**
-   * if the log is not already in the db then
-   * Writes the log in the db Perfrorms the write in the db Merges the vector clock of the log with
-   * the server's one Awakes the buffer updates thread
+   * if the log is not already in the db then Writes the log in the db Perfrorms the write in the db
+   * Merges the vector clock of the log with the server's one Awakes the buffer updates thread
    * otherwhise nothing happens
    *
    * @param log the log of the write to be performed
    */
   public void executeWrite(Log log) throws SQLException, ImpossibleComparisonException {
     this.db.executeTransactionalWrite(log);
-    
 
     System.out.println(
         Integer.toString(this.getServerId())
@@ -308,8 +305,7 @@ public class Server {
             + log.getWriteValue()
             + ") "
             + "vc: "
-            + Arrays.toString(log.getVectorClock().getVector())
-            );
+            + Arrays.toString(log.getVectorClock().getVector()));
   }
 
   /**
@@ -357,11 +353,13 @@ public class Server {
    * @param log the log to add
    */
   public void addToUpdatesBuffer(Log log) {
-      synchronized(updatesBuffer){
-        updatesBuffer.add(log);
-        isBufferReady.set(true);
-      }
-      synchronized (timeVector) { timeVector.notify();}
+    synchronized (updatesBuffer) {
+      updatesBuffer.add(log);
+      isBufferReady.set(true);
+    }
+    synchronized (timeVector) {
+      timeVector.notify();
+    }
   }
 
   /** Get all the valid interface of the machine */
@@ -490,12 +488,13 @@ public class Server {
       System.err.println("Error closing the database: " + e.getMessage());
     }
   }
+
   /**
    * Set the the Atomic Boolean isBufferReady to the given boolean value
+   *
    * @param bool boolean
    */
   public void setBufferReady(boolean bool) {
-     isBufferReady.set(bool);
+    isBufferReady.set(bool);
   }
-
 }

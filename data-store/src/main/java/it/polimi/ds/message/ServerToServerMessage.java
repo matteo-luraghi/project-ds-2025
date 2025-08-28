@@ -1,8 +1,7 @@
 package it.polimi.ds.message;
 
-import java.io.Serializable;
-
 import it.polimi.ds.server.Server;
+import java.io.Serializable;
 
 /**
  * ServerToServerMessage

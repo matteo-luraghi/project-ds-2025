@@ -6,8 +6,7 @@ import java.util.Scanner;
 /**
  * ClientMain
  *
- * <p>
- * used to start a new client
+ * <p>used to start a new client
  */
 public class ClientMain {
 
