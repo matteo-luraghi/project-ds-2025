@@ -1,0 +1,22 @@
+title Send Log Request
+
+[->Server: sendLogRequest
+Server-> Database: getLastLog()
+Database->Server: lastLog
+Server-> Other Servers: LogRequestMessage(lastLog,serverId)
+alt serverId == this.serverId
+  note over Other Servers: ignore msg from server it self
+  Other Servers->Other Servers: return
+else  message is from another server
+  Other Servers-> Database 1: getFollowingLogs(lastLog)
+end
+loop log in database
+  alt 
+  note over Other Database: at least one clock of log is greater than the correspondig clock of lastLog.vector 
+  Other Database -> Other Database: addToResult(log)
+  end
+  Other Database -> Other Servers: result
+end
+loop  log in result
+  Other Servers -> Other Servers :sendMulticastMessage(new AppendLogMessage(log))
+end

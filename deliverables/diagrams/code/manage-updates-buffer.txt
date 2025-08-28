@@ -1,0 +1,32 @@
+title Manage Updates Buffer
+
+[->MulticastReceiveThread: AppendLogMessage
+MulticastReceiveThread->MulticastReceiveThread: addToUpdatesBuffer()
+MulticastReceiveThread->MulticastReceiveThread:setBufferIsReady(true)
+MulticastReceiveThread-> ManageUpdatesBufferThread: timeVector.notify()
+loop server is up
+  loop  not bufferIsReady
+  ManageUpdatesBufferThread-> ManageUpdatesBufferThread:  timeVector.wait()
+  end
+  ManageUpdatesBufferThread-> ManageUpdatesBufferThread: haveLostUpdates = false
+  loop log in updatesBuffer
+    alt log.vectorClock.happensBefore(this.vectorClock, senderId)
+      note over ManageUpdatesBufferThread: log doesn't violate causal consistency
+      ManageUpdatesBufferThread-> ManageUpdatesBufferThread: executeWrite(log)
+      ManageUpdatesBufferThread-> ManageUpdatesBufferThread: this.vectorClok.merge(log.vectorClock, this.serverId)
+      ManageUpdatesBufferThread-> ManageUpdatesBufferThread: updatesBuffer.remove(buffer)
+    else else
+      ManageUpdatesBufferThread-> ManageUpdatesBufferThread: haveLostUpdates = true
+    end
+  end
+  ManageUpdatesBufferThread-> ManageUpdatesBufferThread: bufferIsReady.set(false)
+  alt haveLostUpdates == true
+    ManageUpdatesBufferThread-> ManageUpdatesBufferThread: this.updateMissLoops += 1
+  alt this.updateMissLoops > maxUpdateMissLoops
+    ManageUpdatesBufferThread-> ManageUpdatesBufferThread: sendLogsRequestMessage()
+  end
+  else
+     ManageUpdatesBufferThread-> ManageUpdatesBufferThread: this.updateMissLoops = 0
+  end
+ 
+end

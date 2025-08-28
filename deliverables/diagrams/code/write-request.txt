@@ -8,19 +8,22 @@ Server->Server: executeWrite(log)
 
 alt success
   Client<--Server: ServerToClientResponseMessage("success")
-  Server->Other Servers: AppendLogMessage(log)
+  Server->Other Servers: sendMulticast(AppendLogMessage(log))
    
   alt  log.vectorClock.lessOrEqual(vectorClock)]
-    Other Servers->Other Servers: return
-  end
+  note over Other Servers: log is a duplicate
+    Other Servers->Other Servers:return
+ else else
   
   alt log.vectorClock.happensBefore(this.vectorClock, senderId)
+  note over Other Servers: log doesn't violate causal consistency
   Other Servers->Other Servers: executeWrite(log)
   Other Servers->Other Servers: this.vectorClok.merge(log.vectorClock, this.serverId)
   Other Servers->Other Servers: setBufferReady(true)
   Other Servers->Other Servers: this.vectorClock.notify()
   else else
   Other Servers->Other Servers: addToUpdatesBuffer(log)
+  end
   end
   
 else SQLException | ImpossibleComparisonException
