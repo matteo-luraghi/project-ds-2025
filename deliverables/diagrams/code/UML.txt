@@ -1,14 +1,10 @@
 @startuml
 
-title Data Store - Component Diagram
+title Data Store - Components Diagram
 
 package "it.polimi.ds.client" {
-  [Client]
   [ClientMain]
-}
-
-package "it.polimi.ds.database" {
-  [Database]
+  [Client]
 }
 
 package "it.polimi.ds.message" {
@@ -23,6 +19,19 @@ package "it.polimi.ds.message" {
   [ServerToClientResponseMessage]
   [ServerToServerMessage]
   [WriteRequest]
+
+  [AppendLogMessage] -[hidden]down-> [ClientMessage]
+  [Disconnection] -[hidden]down-> [LogsRequestMessage]
+}
+
+package "it.polimi.ds.server" {
+  [ServerMain]
+  [Server]
+  [ClientHandler]
+}
+
+package "it.polimi.ds.database" {
+  [Database]
 }
 
 package "it.polimi.ds.model" {
@@ -30,23 +39,27 @@ package "it.polimi.ds.model" {
   [TimeVector]
 }
 
-package "it.polimi.ds.server" {
-  [ClientHandler]
-  [Server]
-  [ServerMain]
-}
-
-' Relationships
+' Relationships and dependencies
 [ClientMain] --> [Client] : creates
 [ServerMain] --> [Server] : creates
-[ClientHandler] --> [Client] : communicates
-[Server] --> [Database] : stores/retrieves logs
+[Server] --> [ClientHandler] : uses
+
 [Client] --> [message] : sends/receives
 [Server] --> [message] : sends/receives
+[ClientHandler] --> [Client] : communicates
 [message] --> [model] : contains data
-[Server] --> [ClientHandler] : uses
+
+[Server] --> [Database] : stores/retrieves data
 [Server] --> [Log] : stores
 [Server] --> [TimeVector] : has
 [Log] --> [TimeVector] : contains
+
+' Inheritance relationships
+[AppendLogMessage] -|> [ServerToServerMessage] : extends
+[LogsRequestMessage] -|> [ServerToServerMessage] : extends
+[LogsResponseMessage] -|> [ServerToServerMessage] : extends
+[ReadRequest] -|> [ClientMessage] : extends
+[WriteRequest] -|> [ClientMessage] : extends
+[ServerToClientResponseMessage] -|> [ServerToClientMessage] : extends
 
 @enduml
