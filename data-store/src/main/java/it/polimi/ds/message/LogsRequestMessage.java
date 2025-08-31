@@ -39,12 +39,14 @@ public class LogsRequestMessage extends ServerToServerMessage {
       // get the missing logs from db
       List<Log> missingLogs = server.getDb().getFollowingLogs(this.lastLog);
       // send the missing logs
-      System.out.println("Sending missing logs");
       for (Log missingLog : missingLogs) {
         server.sendMulticastMessage(new AppendLogMessage(missingLog));
       }
+      System.out.println("Missing logs sent");
     } catch (SQLException | InvalidDimensionException | InvalidInitValuesException e) {
       System.out.println(e);
+    } catch (NullPointerException ignored) {
+      // no missing logs to send
     }
   }
 }
