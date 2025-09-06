@@ -61,3 +61,15 @@ or run the **pre-built JAR files**.
    ```bash
    java -jar ./client.jar
    ```
+
+### Troubleshooting
+
+If you encounter an error like:
+   ```bash
+   java.sql.SQLException: path to 'storage/ip_port.db': '/path/to/jars/storage' does not exist
+   ```
+you need to create a `storage` directory in the same directory as the JAR files:
+   ```bash
+   mkdir storage
+   ```
+
