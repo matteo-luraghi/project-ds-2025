@@ -31,5 +31,3 @@ Implement the project in Java or simulate it in OmNet++.
    software and run-time architecture of their solution.
 6. Projects developed in Java cannot use networking technologies other than sockets
    (TCP or UDP, unicast or multicast) or RMI.
-7. Students interested in doing their thesis in the area of distributed systems should
-   contact Prof. Cugola for research projects that will substitute the course project.
