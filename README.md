@@ -1,12 +1,25 @@
-# Distributed System Project
+# Distributed System Project - Data Store
 
-This project provides both server and client components.\
-You can either **compile the code yourself** (recommended for testing and applying modifications)\
-or run the **pre-built JAR files**.
+## 🗄️ Project Overview
+
+Project developed for the "Distributed System" course. This project is a distributed key-value store that ensures high availability and causal consistency across multiple servers.
+
+The complete requirements are described in the [Technical Specification](./Technical%20Specification.md)
+
+### Key Features
+
+- **Replicated Storage** – every server holds a full copy of the key-value store.
+- **Causal Consistency** – operations respect causal dependencies across clients and servers.
+- **High Availability** – clients can continue reading and writing as long as their server is reachable, even if that server is temporarily disconnected from the others.
+- **Client–Server Architecture** – clients connect to one server for their lifetime and issue `read(key)` and `write(key, value)` requests.
+
+The system is fully implemented in Java 21 and uses Maven for building and running.
+
+You can either [compile the code yourself](#%EF%B8%8F-compile-yourself) (recommended for testing and applying modifications) or run the [pre-built JAR files](#-use-the-jars).
 
 ---
 
-## Option 1: Compile Yourself
+## 🛠️ Compile Yourself
 
 ### Requirements
 
@@ -38,7 +51,7 @@ or run the **pre-built JAR files**.
 
 ---
 
-## Option 2: Using the Pre-Built JARs
+## 📦 Use the JARs
 
 ### Requirements
 
@@ -59,7 +72,7 @@ or run the **pre-built JAR files**.
    java -jar ./client.jar
    ```
 
-### Troubleshooting
+### ⚠️ Troubleshooting
 
 If you encounter an error like:
    ```bash
