@@ -46,11 +46,8 @@ or run the **pre-built JAR files**.
 
 ### Steps
 
-1. Open a terminal in the `JAR` directory:
+1. Open a terminal in the directory that contains the `.jar` files
 
-   ```bash
-   cd deliverables/JAR
-   ```
 2. Run the server:
 
    ```bash
